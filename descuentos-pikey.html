@@ -30,24 +30,118 @@
             overflow: hidden;
         }
 
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            min-width: 300px;
+        }
+
+        .login-box h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .login-box p {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .login-box input:focus {
+            outline: none;
+            border-color: #2c3e50;
+            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .login-box button:hover {
+            background: #1a252f;
+            transform: translateY(-1px);
+        }
+
+        .login-error {
+            color: #e74c3c;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
         .header {
             background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
             color: white;
-            padding: 30px;
-            text-align: center;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        .header h1 {
-            font-size: 32px;
+        .header-left h1 {
+            font-size: 24px;
             font-weight: 700;
             margin-bottom: 5px;
-            letter-spacing: -0.5px;
         }
 
-        .header p {
-            font-size: 14px;
+        .header-left p {
+            font-size: 12px;
             opacity: 0.9;
             font-weight: 500;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .user-info {
+            font-size: 12px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
         }
 
         .content {
@@ -124,17 +218,6 @@
 
         .btn-danger:hover {
             background: #c0392b;
-        }
-
-        .btn-success {
-            background: #27ae60;
-            color: white;
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-
-        .btn-success:hover {
-            background: #229954;
         }
 
         .stats {
@@ -281,7 +364,7 @@
         }
 
         .observaciones-cell {
-            max-width: 200px;
+            max-width: 150px;
             word-break: break-word;
             color: #7f8c8d;
         }
@@ -298,21 +381,24 @@
             color: #95a5a6;
         }
 
-        .empty-state svg {
-            width: 60px;
-            height: 60px;
-            margin-bottom: 15px;
-            opacity: 0.3;
+        .sync-status {
+            font-size: 11px;
+            color: #27ae60;
+            margin-top: 5px;
         }
 
-        .highlight-match {
-            background: #fff9c4;
-            font-weight: 600;
+        .sync-status.syncing {
+            color: #f39c12;
         }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 24px;
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .header-right {
+                text-align: left;
             }
 
             .form-grid {
@@ -334,10 +420,29 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>💰 Descuentos y Beneficios</h1>
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h1>💰 Descuentos & Beneficios</h1>
             <p>En búsqueda del Pikey - Giuliani S.A.</p>
+            <input type="password" id="passwordInput" placeholder="Ingresa la contraseña" onkeypress="if(event.key==='Enter') login()">
+            <button onclick="login()">Ingresar</button>
+            <div id="loginError" class="login-error"></div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="mainApp" class="container" style="display: none;">
+        <div class="header">
+            <div class="header-left">
+                <h1>💰 Descuentos y Beneficios</h1>
+                <p>En búsqueda del Pikey - Giuliani S.A.</p>
+            </div>
+            <div class="header-right">
+                <div class="user-info">Sesión iniciada ✓</div>
+                <div class="sync-status" id="syncStatus">Sincronizado</div>
+                <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+            </div>
         </div>
 
         <div class="content">
@@ -380,6 +485,10 @@
                         <input type="text" id="articulo" placeholder="Ej: Tuercas M8">
                     </div>
                     <div class="form-group">
+                        <label>Cantidad *</label>
+                        <input type="number" id="cantidad" placeholder="0" min="1" step="1">
+                    </div>
+                    <div class="form-group">
                         <label>Precio Original *</label>
                         <input type="number" id="precioOriginal" placeholder="0.00" step="0.01">
                     </div>
@@ -406,6 +515,7 @@
                             <th style="width: 30px;">✓</th>
                             <th>Proveedor</th>
                             <th>Artículo</th>
+                            <th style="width: 80px;">Cantidad</th>
                             <th style="width: 120px;">Precio Original</th>
                             <th style="width: 120px;">Precio Final</th>
                             <th style="width: 100px;">Beneficio</th>
@@ -415,7 +525,7 @@
                     </thead>
                     <tbody id="tableBody">
                         <tr>
-                            <td colspan="8" style="text-align: center; padding: 40px; color: #95a5a6;">
+                            <td colspan="9" style="text-align: center; padding: 40px; color: #95a5a6;">
                                 Cargando registros...
                             </td>
                         </tr>
@@ -428,12 +538,13 @@
     <script>
         let records = [];
         let db = null;
+        let isLoggedIn = false;
+        const PASSWORD = "comprasG2026";
 
-        // INICIALIZAR
+        // INICIALIZAR FIREBASE
         window.addEventListener('load', () => {
             initFirebase();
-            loadRecords();
-            document.getElementById('searchInput').addEventListener('input', renderTable);
+            checkLogin();
         });
 
         function initFirebase() {
@@ -446,18 +557,55 @@
                 const app = firebase.initializeApp(config);
                 db = firebase.firestore(app);
             } catch (e) {
-                console.log('Firebase local mode', e);
+                console.log('Firebase inicializado');
             }
         }
 
-        function loadRecords() {
-            if (!db) {
-                const saved = localStorage.getItem('descuentosData');
-                records = saved ? JSON.parse(saved) : [];
-                renderTable();
-                updateStats();
-                return;
+        function checkLogin() {
+            const sessionToken = sessionStorage.getItem('sessionToken');
+            if (sessionToken === PASSWORD) {
+                isLoggedIn = true;
+                showMainApp();
             }
+        }
+
+        function login() {
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('loginError');
+
+            if (password === PASSWORD) {
+                sessionStorage.setItem('sessionToken', PASSWORD);
+                isLoggedIn = true;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                loadRecords();
+                document.getElementById('searchInput').addEventListener('input', renderTable);
+            } else {
+                errorDiv.textContent = 'Contraseña incorrecta';
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('sessionToken');
+            isLoggedIn = false;
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('loginError').textContent = '';
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            loadRecords();
+            document.getElementById('searchInput').addEventListener('input', renderTable);
+        }
+
+        function loadRecords() {
+            if (!db) return;
+
+            updateSyncStatus('Sincronizando...');
 
             db.collection('descuentos')
                 .orderBy('fecha', 'desc')
@@ -468,7 +616,17 @@
                     });
                     renderTable();
                     updateStats();
+                    updateSyncStatus('Sincronizado');
+                }, error => {
+                    console.error('Error cargando:', error);
+                    updateSyncStatus('Error en sincronización');
                 });
+        }
+
+        function updateSyncStatus(status) {
+            const statusEl = document.getElementById('syncStatus');
+            statusEl.textContent = status;
+            statusEl.classList.toggle('syncing', status.includes('Sincronizando'));
         }
 
         function toggleForm() {
@@ -479,21 +637,24 @@
         function addRecord() {
             const proveedor = document.getElementById('proveedor').value;
             const articulo = document.getElementById('articulo').value;
+            const cantidad = parseInt(document.getElementById('cantidad').value) || 1;
             const precioOriginal = parseFloat(document.getElementById('precioOriginal').value);
             const precioFinal = parseFloat(document.getElementById('precioFinal').value);
             const observaciones = document.getElementById('observaciones').value;
 
-            if (!proveedor || !articulo || !precioOriginal || !precioFinal) {
+            if (!proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
                 alert('Completa los campos obligatorios');
                 return;
             }
 
-            const beneficio = precioOriginal - precioFinal;
+            // Beneficio = (Precio Original - Precio Final) * Cantidad
+            const beneficio = (precioOriginal - precioFinal) * cantidad;
+
             const newRecord = {
-                id: Date.now().toString(),
                 fecha: new Date().toISOString().split('T')[0],
                 proveedor,
                 articulo,
+                cantidad,
                 precioOriginal,
                 precioFinal,
                 beneficio,
@@ -502,53 +663,49 @@
             };
 
             if (db) {
-                db.collection('descuentos').add(newRecord).catch(() => {
-                    saveLocal(newRecord);
-                });
-            } else {
-                saveLocal(newRecord);
+                updateSyncStatus('Guardando...');
+                db.collection('descuentos').add(newRecord)
+                    .then(() => {
+                        // Limpiar formulario
+                        document.getElementById('proveedor').value = '';
+                        document.getElementById('articulo').value = '';
+                        document.getElementById('cantidad').value = '';
+                        document.getElementById('precioOriginal').value = '';
+                        document.getElementById('precioFinal').value = '';
+                        document.getElementById('observaciones').value = '';
+                        toggleForm();
+                        updateSyncStatus('Guardado');
+                    })
+                    .catch(err => {
+                        console.error('Error:', err);
+                        updateSyncStatus('Error al guardar');
+                    });
             }
-
-            // Limpiar formulario
-            document.getElementById('proveedor').value = '';
-            document.getElementById('articulo').value = '';
-            document.getElementById('precioOriginal').value = '';
-            document.getElementById('precioFinal').value = '';
-            document.getElementById('observaciones').value = '';
-            toggleForm();
-        }
-
-        function saveLocal(record) {
-            records.push(record);
-            localStorage.setItem('descuentosData', JSON.stringify(records));
-            renderTable();
-            updateStats();
         }
 
         function renderTable() {
             const search = document.getElementById('searchInput').value.toLowerCase();
 
             let filtered = records.filter(r => {
-                const text = `${r.proveedor} ${r.articulo} ${r.precioOriginal} ${r.precioFinal} ${r.observaciones}`.toLowerCase();
+                const text = `${r.proveedor} ${r.articulo} ${r.cantidad} ${r.precioOriginal} ${r.precioFinal} ${r.observaciones}`.toLowerCase();
                 return text.includes(search);
             });
 
             if (filtered.length === 0) {
                 document.getElementById('tableBody').innerHTML = 
-                    '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #95a5a6;">Sin resultados</td></tr>';
+                    '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #95a5a6;">Sin resultados</td></tr>';
                 return;
             }
 
             const html = filtered.map(r => {
-                const beneficio = (r.beneficio || r.precioOriginal - r.precioFinal).toFixed(2);
-                const proveedor = search ? r.proveedor.replace(new RegExp(search, 'gi'), match => `<mark class="highlight-match">${match}</mark>`) : r.proveedor;
-                const articulo = search ? r.articulo.replace(new RegExp(search, 'gi'), match => `<mark class="highlight-match">${match}</mark>`) : r.articulo;
+                const beneficio = (r.beneficio || (r.precioOriginal - r.precioFinal) * r.cantidad).toFixed(2);
 
                 return `
                     <tr class="${r.completed ? 'completed' : ''}">
                         <td><input type="checkbox" class="checkbox" ${r.completed ? 'checked' : ''} onchange="toggleComplete('${r.id}')"></td>
-                        <td>${proveedor}</td>
-                        <td>${articulo}</td>
+                        <td>${r.proveedor}</td>
+                        <td>${r.articulo}</td>
+                        <td>${r.cantidad}</td>
                         <td class="price">$${parseFloat(r.precioOriginal).toFixed(2)}</td>
                         <td class="price">$${parseFloat(r.precioFinal).toFixed(2)}</td>
                         <td class="beneficio">$${beneficio}</td>
@@ -563,34 +720,38 @@
 
         function toggleComplete(id) {
             const record = records.find(r => r.id === id);
-            if (record) {
-                record.completed = !record.completed;
-                if (db) {
-                    db.collection('descuentos').doc(id).update({ completed: record.completed });
-                } else {
-                    localStorage.setItem('descuentosData', JSON.stringify(records));
-                }
-                renderTable();
+            if (record && db) {
+                updateSyncStatus('Actualizando...');
+                db.collection('descuentos').doc(id).update({ 
+                    completed: !record.completed 
+                }).then(() => {
+                    updateSyncStatus('Actualizado');
+                }).catch(err => {
+                    console.error('Error:', err);
+                    updateSyncStatus('Error');
+                });
             }
         }
 
         function deleteRecord(id) {
             if (confirm('¿Eliminar este descuento?')) {
-                records = records.filter(r => r.id !== id);
                 if (db) {
-                    db.collection('descuentos').doc(id).delete();
-                } else {
-                    localStorage.setItem('descuentosData', JSON.stringify(records));
+                    updateSyncStatus('Eliminando...');
+                    db.collection('descuentos').doc(id).delete()
+                        .then(() => {
+                            updateSyncStatus('Eliminado');
+                        })
+                        .catch(err => {
+                            console.error('Error:', err);
+                            updateSyncStatus('Error');
+                        });
                 }
-                renderTable();
-                updateStats();
             }
         }
 
         function updateStats() {
-            const completed = records.filter(r => r.completed);
             const total = records.length;
-            const totalBenefit = records.reduce((sum, r) => sum + (r.beneficio || r.precioOriginal - r.precioFinal), 0);
+            const totalBenefit = records.reduce((sum, r) => sum + (r.beneficio || (r.precioOriginal - r.precioFinal) * r.cantidad), 0);
             const avg = total > 0 ? totalBenefit / total : 0;
 
             document.getElementById('totalCount').textContent = total;
@@ -609,10 +770,10 @@
         }
 
         function exportCSV() {
-            let csv = 'Proveedor,Artículo,Precio Original,Precio Final,Beneficio,Observaciones\n';
+            let csv = 'Proveedor,Artículo,Cantidad,Precio Original,Precio Final,Beneficio,Observaciones\n';
             records.forEach(r => {
-                const beneficio = (r.beneficio || r.precioOriginal - r.precioFinal).toFixed(2);
-                csv += `"${r.proveedor}","${r.articulo}",${r.precioOriginal},${r.precioFinal},${beneficio},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
+                const beneficio = (r.beneficio || (r.precioOriginal - r.precioFinal) * r.cantidad).toFixed(2);
+                csv += `"${r.proveedor}","${r.articulo}",${r.cantidad},${r.precioOriginal},${r.precioFinal},${beneficio},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);

@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Descuentos y Beneficios - Búsqueda del Pikey</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #f5f2e8;
+            color: #333;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #fefdfb;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            min-width: 300px;
+        }
+
+        .login-box h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .login-box p {
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .login-box input:focus {
+            outline: none;
+            border-color: #2c3e50;
+            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .login-box button:hover {
+            background: #1a252f;
+            transform: translateY(-1px);
+        }
+
+        .login-error {
+            color: #e74c3c;
+            margin-top: 15px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .header-left p {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .content {
+            padding: 25px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: 'DM Sans', sans-serif;
+            margin-bottom: 15px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #2c3e50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1a252f;
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-edit {
+            background: #3498db;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: #f8f7f4;
+            padding: 18px;
+            border-radius: 8px;
+            border-left: 4px solid #2c3e50;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .stat-card.highlight {
+            border-left-color: #27ae60;
+        }
+
+        .stat-card.highlight .value {
+            color: #27ae60;
+        }
+
+        .form-section {
+            background: #f8f7f4;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+        }
+
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: white;
+        }
+
+        thead {
+            background: #2c3e50;
+            color: white;
+        }
+
+        th {
+            padding: 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        tr:hover {
+            background: #f9f8f6;
+        }
+
+        .price {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .beneficio {
+            font-weight: 700;
+            color: #27ae60;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h1>💰 Descuentos & Beneficios</h1>
+            <p>En búsqueda del Pikey - Giuliani S.A.</p>
+            <input type="password" id="passwordInput" placeholder="Ingresa la contraseña" onkeypress="if(event.key==='Enter') login()">
+            <button onclick="login()">Ingresar</button>
+            <div id="loginError" class="login-error"></div>
+        </div>
+    </div>
+
+    <!-- APP -->
+    <div id="mainApp" class="container" style="display: none;">
+        <div class="header">
+            <div class="header-left">
+                <h1>💰 Descuentos y Beneficios</h1>
+                <p>En búsqueda del Pikey - Giuliani S.A.</p>
+            </div>
+            <div class="header-right">
+                <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Total de Descuentos</h3>
+                    <div class="value" id="totalCount">0</div>
+                </div>
+                <div class="stat-card highlight">
+                    <h3>Ahorro Total</h3>
+                    <div class="value" id="totalBenefit">$0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Promedio por Descuento</h3>
+                    <div class="value" id="avgBenefit">$0</div>
+                </div>
+            </div>
+
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar por proveedor, artículo, precio...">
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="toggleForm()">➕ Nuevo Descuento</button>
+                <button class="btn-secondary" onclick="downloadJSON()">💾 Descargar JSON</button>
+                <button class="btn-secondary" onclick="exportCSV()">📊 Exportar CSV</button>
+            </div>
+
+            <div id="formSection" class="form-section" style="display: none;">
+                <div style="font-size: 16px; font-weight: 700; margin-bottom: 15px; color: #2c3e50;">Registrar Nuevo Descuento</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Proveedor *</label>
+                        <input type="text" id="proveedor" placeholder="Ej: Aceros del Centro">
+                    </div>
+                    <div class="form-group">
+                        <label>Artículo *</label>
+                        <input type="text" id="articulo" placeholder="Ej: Tuercas M8">
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad *</label>
+                        <input type="number" id="cantidad" placeholder="0" min="1" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Original *</label>
+                        <input type="number" id="precioOriginal" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Final *</label>
+                        <input type="number" id="precioFinal" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group full">
+                        <label>Observaciones (Opcional)</label>
+                        <input type="text" id="observaciones" placeholder="Detalles adicionales...">
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="addRecord()">Guardar Descuento</button>
+                    <button class="btn-secondary" onclick="toggleForm()">Cancelar</button>
+                </div>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">✓</th>
+                            <th>Proveedor</th>
+                            <th>Artículo</th>
+                            <th style="width: 80px;">Cantidad</th>
+                            <th style="width: 120px;">Precio Original</th>
+                            <th style="width: 120px;">Precio Final</th>
+                            <th style="width: 100px;">Beneficio</th>
+                            <th>Observaciones</th>
+                            <th style="width: 100px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 40px; color: #95a5a6;">
+                                Cargando...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Editar Descuento</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Proveedor</label>
+                    <input type="text" id="editProveedor">
+                </div>
+                <div class="form-group">
+                    <label>Artículo</label>
+                    <input type="text" id="editArticulo">
+                </div>
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="editCantidad" min="1" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Precio Original</label>
+                    <input type="number" id="editPrecioOriginal" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Precio Final</label>
+                    <input type="number" id="editPrecioFinal" step="0.01">
+                </div>
+                <div class="form-group full">
+                    <label>Observaciones</label>
+                    <input type="text" id="editObservaciones">
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="saveEdit()">Guardar cambios</button>
+                <button class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = "https://hhjcfuawfyxbdkktkkmn.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_BjcUhvUle3Q-0jopsh8lvQ_O9GjjVFS";
+        const PASSWORD = "comprasG2026";
+
+        let supabase = null;
+        let records = [];
+        let currentEditId = null;
+
+        window.addEventListener('load', async () => {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('Supabase inicializado');
+            checkLogin();
+        });
+
+        function checkLogin() {
+            if (sessionStorage.getItem('sessionToken') === PASSWORD) {
+                showMainApp();
+            }
+        }
+
+        function login() {
+            const password = document.getElementById('passwordInput').value;
+            const errorDiv = document.getElementById('loginError');
+
+            if (password === PASSWORD) {
+                sessionStorage.setItem('sessionToken', PASSWORD);
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                loadRecords();
+                document.getElementById('searchInput').addEventListener('input', renderTable);
+            } else {
+                errorDiv.textContent = 'Contraseña incorrecta';
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('sessionToken');
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            loadRecords();
+        }
+
+        async function loadRecords() {
+            try {
+                const { data, error } = await supabase
+                    .from('descuentos')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Error:', error);
+                    return;
+                }
+
+                records = data || [];
+                renderTable();
+                updateStats();
+            } catch (e) {
+                console.error('Error cargando:', e);
+            }
+        }
+
+        function toggleForm() {
+            document.getElementById('formSection').style.display = 
+                document.getElementById('formSection').style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function addRecord() {
+            const proveedor = document.getElementById('proveedor').value;
+            const articulo = document.getElementById('articulo').value;
+            const cantidad = parseInt(document.getElementById('cantidad').value) || 1;
+            const precioOriginal = parseFloat(document.getElementById('precioOriginal').value);
+            const precioFinal = parseFloat(document.getElementById('precioFinal').value);
+            const observaciones = document.getElementById('observaciones').value;
+
+            if (!proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
+                alert('Completa todos los campos obligatorios');
+                return;
+            }
+
+            const beneficio = (precioOriginal - precioFinal) * cantidad;
+
+            const { error } = await supabase.from('descuentos').insert([{
+                fecha: new Date().toISOString().split('T')[0],
+                proveedor,
+                articulo,
+                cantidad,
+                precio_original: precioOriginal,
+                precio_final: precioFinal,
+                beneficio,
+                observaciones,
+                completed: false
+            }]);
+
+            if (error) {
+                alert('Error: ' + error.message);
+                return;
+            }
+
+            document.getElementById('proveedor').value = '';
+            document.getElementById('articulo').value = '';
+            document.getElementById('cantidad').value = '';
+            document.getElementById('precioOriginal').value = '';
+            document.getElementById('precioFinal').value = '';
+            document.getElementById('observaciones').value = '';
+            toggleForm();
+            await loadRecords();
+        }
+
+        function renderTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtered = records.filter(r => {
+                const text = `${r.proveedor} ${r.articulo} ${r.cantidad} ${r.precio_original} ${r.precio_final} ${r.observaciones}`.toLowerCase();
+                return text.includes(search);
+            });
+
+            if (filtered.length === 0) {
+                document.getElementById('tableBody').innerHTML = 
+                    '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #95a5a6;">Sin resultados</td></tr>';
+                return;
+            }
+
+            const html = filtered.map(r => {
+                const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad).toFixed(2);
+
+                return `
+                    <tr>
+                        <td><input type="checkbox" ${r.completed ? 'checked' : ''} onchange="toggleComplete('${r.id}')"></td>
+                        <td>${r.proveedor}</td>
+                        <td>${r.articulo}</td>
+                        <td>${r.cantidad}</td>
+                        <td class="price">$${parseFloat(r.precio_original).toFixed(2)}</td>
+                        <td class="price">$${parseFloat(r.precio_final).toFixed(2)}</td>
+                        <td class="beneficio">$${beneficio}</td>
+                        <td>${r.observaciones || '-'}</td>
+                        <td>
+                            <button class="btn-edit" onclick="openEditModal('${r.id}')">✏️</button>
+                            <button class="btn-danger" onclick="deleteRecord('${r.id}')">✕</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('tableBody').innerHTML = html;
+            document.getElementById('searchInput').addEventListener('input', renderTable);
+        }
+
+        function openEditModal(id) {
+            const record = records.find(r => r.id === id);
+            if (!record) return;
+
+            currentEditId = id;
+            document.getElementById('editProveedor').value = record.proveedor;
+            document.getElementById('editArticulo').value = record.articulo;
+            document.getElementById('editCantidad').value = record.cantidad;
+            document.getElementById('editPrecioOriginal').value = record.precio_original;
+            document.getElementById('editPrecioFinal').value = record.precio_final;
+            document.getElementById('editObservaciones').value = record.observaciones || '';
+
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            currentEditId = null;
+        }
+
+        async function saveEdit() {
+            if (!currentEditId) return;
+
+            const proveedor = document.getElementById('editProveedor').value;
+            const articulo = document.getElementById('editArticulo').value;
+            const cantidad = parseInt(document.getElementById('editCantidad').value);
+            const precioOriginal = parseFloat(document.getElementById('editPrecioOriginal').value);
+            const precioFinal = parseFloat(document.getElementById('editPrecioFinal').value);
+            const observaciones = document.getElementById('editObservaciones').value;
+
+            if (!proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
+                alert('Completa todos los campos obligatorios');
+                return;
+            }
+
+            const beneficio = (precioOriginal - precioFinal) * cantidad;
+
+            const { error } = await supabase
+                .from('descuentos')
+                .update({
+                    proveedor,
+                    articulo,
+                    cantidad,
+                    precio_original: precioOriginal,
+                    precio_final: precioFinal,
+                    beneficio,
+                    observaciones
+                })
+                .eq('id', currentEditId);
+
+            if (error) {
+                alert('Error: ' + error.message);
+                return;
+            }
+
+            closeEditModal();
+            await loadRecords();
+        }
+
+        async function toggleComplete(id) {
+            const record = records.find(r => r.id === id);
+            if (record) {
+                await supabase
+                    .from('descuentos')
+                    .update({ completed: !record.completed })
+                    .eq('id', id);
+                await loadRecords();
+            }
+        }
+
+        async function deleteRecord(id) {
+            if (confirm('¿Eliminar este descuento?')) {
+                await supabase.from('descuentos').delete().eq('id', id);
+                await loadRecords();
+            }
+        }
+
+        function updateStats() {
+            const total = records.length;
+            const totalBenefit = records.reduce((sum, r) => sum + (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad), 0);
+            const avg = total > 0 ? totalBenefit / total : 0;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('totalBenefit').textContent = '$' + totalBenefit.toFixed(2);
+            document.getElementById('avgBenefit').textContent = '$' + avg.toFixed(2);
+        }
+
+        function downloadJSON() {
+            const data = JSON.stringify(records, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `descuentos-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function exportCSV() {
+            let csv = 'Proveedor,Artículo,Cantidad,Precio Original,Precio Final,Beneficio,Observaciones\n';
+            records.forEach(r => {
+                const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad).toFixed(2);
+                csv += `"${r.proveedor}","${r.articulo}",${r.cantidad},${r.precio_original},${r.precio_final},${beneficio},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `descuentos-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+    </script>
+</body>
+</html>

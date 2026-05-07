@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Descuentos y Beneficios - Búsqueda del Pikey</title>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #f5f2e8;
+            color: #333;
+            padding: 10px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #fefdfb;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .content {
+            padding: 25px;
+        }
+
+        .search-section {
+            margin-bottom: 25px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: 'DM Sans', sans-serif;
+            transition: border-color 0.3s;
+            background: white;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #2c3e50;
+            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #2c3e50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1a252f;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(44, 62, 80, 0.2);
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e6eb;
+            border-color: #2c3e50;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: #f8f7f4;
+            padding: 18px;
+            border-radius: 8px;
+            border-left: 4px solid #2c3e50;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .stat-card.highlight {
+            border-left-color: #27ae60;
+        }
+
+        .stat-card.highlight .value {
+            color: #27ae60;
+        }
+
+        .form-section {
+            background: #f8f7f4;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .form-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .form-group input {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            background: white;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #2c3e50;
+            box-shadow: 0 0 0 2px rgba(44, 62, 80, 0.05);
+        }
+
+        .form-group.full {
+            grid-column: 1 / -1;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            background: white;
+        }
+
+        thead {
+            background: #2c3e50;
+            color: white;
+        }
+
+        th {
+            padding: 14px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        tr:hover {
+            background: #f9f8f6;
+        }
+
+        tr.completed {
+            opacity: 0.6;
+        }
+
+        .price {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .beneficio {
+            font-weight: 700;
+            color: #27ae60;
+        }
+
+        .observaciones-cell {
+            max-width: 200px;
+            word-break: break-word;
+            color: #7f8c8d;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #95a5a6;
+        }
+
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+
+        .highlight-match {
+            background: #fff9c4;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 10px;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💰 Descuentos y Beneficios</h1>
+            <p>En búsqueda del Pikey - Giuliani S.A.</p>
+        </div>
+
+        <div class="content">
+            <!-- ESTADÍSTICAS -->
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Total de Descuentos</h3>
+                    <div class="value" id="totalCount">0</div>
+                </div>
+                <div class="stat-card highlight">
+                    <h3>Ahorro Total</h3>
+                    <div class="value" id="totalBenefit">$0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Promedio por Descuento</h3>
+                    <div class="value" id="avgBenefit">$0</div>
+                </div>
+            </div>
+
+            <!-- BÚSQUEDA -->
+            <div class="search-section">
+                <input type="text" id="searchInput" class="search-input" placeholder="Buscar por proveedor, artículo, precio o cualquier dato...">
+                <div class="button-group">
+                    <button class="btn-primary" onclick="toggleForm()">➕ Nuevo Descuento</button>
+                    <button class="btn-secondary" onclick="downloadJSON()">💾 Descargar</button>
+                    <button class="btn-secondary" onclick="exportCSV()">📊 Exportar CSV</button>
+                </div>
+            </div>
+
+            <!-- FORMULARIO -->
+            <div id="formSection" class="form-section" style="display: none;">
+                <div class="form-title">Registrar Nuevo Descuento</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Proveedor *</label>
+                        <input type="text" id="proveedor" placeholder="Ej: Aceros del Centro">
+                    </div>
+                    <div class="form-group">
+                        <label>Artículo *</label>
+                        <input type="text" id="articulo" placeholder="Ej: Tuercas M8">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Original *</label>
+                        <input type="number" id="precioOriginal" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Final *</label>
+                        <input type="number" id="precioFinal" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group full">
+                        <label>Observaciones (Opcional)</label>
+                        <input type="text" id="observaciones" placeholder="Detalles adicionales...">
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="addRecord()">Guardar Descuento</button>
+                    <button class="btn-secondary" onclick="toggleForm()">Cancelar</button>
+                </div>
+            </div>
+
+            <!-- TABLA -->
+            <div class="table-wrapper">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;">✓</th>
+                            <th>Proveedor</th>
+                            <th>Artículo</th>
+                            <th style="width: 120px;">Precio Original</th>
+                            <th style="width: 120px;">Precio Final</th>
+                            <th style="width: 100px;">Beneficio</th>
+                            <th>Observaciones</th>
+                            <th style="width: 60px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="8" style="text-align: center; padding: 40px; color: #95a5a6;">
+                                Cargando registros...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let records = [];
+        let db = null;
+
+        // INICIALIZAR
+        window.addEventListener('load', () => {
+            initFirebase();
+            loadRecords();
+            document.getElementById('searchInput').addEventListener('input', renderTable);
+        });
+
+        function initFirebase() {
+            const config = {
+                apiKey: "AIzaSyC4OGfBY2apcx5RCOWuZXI4r4ukQRNxe0I",
+                projectId: "giuliani-2026"
+            };
+
+            try {
+                const app = firebase.initializeApp(config);
+                db = firebase.firestore(app);
+            } catch (e) {
+                console.log('Firebase local mode', e);
+            }
+        }
+
+        function loadRecords() {
+            if (!db) {
+                const saved = localStorage.getItem('descuentosData');
+                records = saved ? JSON.parse(saved) : [];
+                renderTable();
+                updateStats();
+                return;
+            }
+
+            db.collection('descuentos')
+                .orderBy('fecha', 'desc')
+                .onSnapshot(snapshot => {
+                    records = [];
+                    snapshot.forEach(doc => {
+                        records.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderTable();
+                    updateStats();
+                });
+        }
+
+        function toggleForm() {
+            document.getElementById('formSection').style.display = 
+                document.getElementById('formSection').style.display === 'none' ? 'block' : 'none';
+        }
+
+        function addRecord() {
+            const proveedor = document.getElementById('proveedor').value;
+            const articulo = document.getElementById('articulo').value;
+            const precioOriginal = parseFloat(document.getElementById('precioOriginal').value);
+            const precioFinal = parseFloat(document.getElementById('precioFinal').value);
+            const observaciones = document.getElementById('observaciones').value;
+
+            if (!proveedor || !articulo || !precioOriginal || !precioFinal) {
+                alert('Completa los campos obligatorios');
+                return;
+            }
+
+            const beneficio = precioOriginal - precioFinal;
+            const newRecord = {
+                id: Date.now().toString(),
+                fecha: new Date().toISOString().split('T')[0],
+                proveedor,
+                articulo,
+                precioOriginal,
+                precioFinal,
+                beneficio,
+                observaciones,
+                completed: false
+            };
+
+            if (db) {
+                db.collection('descuentos').add(newRecord).catch(() => {
+                    saveLocal(newRecord);
+                });
+            } else {
+                saveLocal(newRecord);
+            }
+
+            // Limpiar formulario
+            document.getElementById('proveedor').value = '';
+            document.getElementById('articulo').value = '';
+            document.getElementById('precioOriginal').value = '';
+            document.getElementById('precioFinal').value = '';
+            document.getElementById('observaciones').value = '';
+            toggleForm();
+        }
+
+        function saveLocal(record) {
+            records.push(record);
+            localStorage.setItem('descuentosData', JSON.stringify(records));
+            renderTable();
+            updateStats();
+        }
+
+        function renderTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+
+            let filtered = records.filter(r => {
+                const text = `${r.proveedor} ${r.articulo} ${r.precioOriginal} ${r.precioFinal} ${r.observaciones}`.toLowerCase();
+                return text.includes(search);
+            });
+
+            if (filtered.length === 0) {
+                document.getElementById('tableBody').innerHTML = 
+                    '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #95a5a6;">Sin resultados</td></tr>';
+                return;
+            }
+
+            const html = filtered.map(r => {
+                const beneficio = (r.beneficio || r.precioOriginal - r.precioFinal).toFixed(2);
+                const proveedor = search ? r.proveedor.replace(new RegExp(search, 'gi'), match => `<mark class="highlight-match">${match}</mark>`) : r.proveedor;
+                const articulo = search ? r.articulo.replace(new RegExp(search, 'gi'), match => `<mark class="highlight-match">${match}</mark>`) : r.articulo;
+
+                return `
+                    <tr class="${r.completed ? 'completed' : ''}">
+                        <td><input type="checkbox" class="checkbox" ${r.completed ? 'checked' : ''} onchange="toggleComplete('${r.id}')"></td>
+                        <td>${proveedor}</td>
+                        <td>${articulo}</td>
+                        <td class="price">$${parseFloat(r.precioOriginal).toFixed(2)}</td>
+                        <td class="price">$${parseFloat(r.precioFinal).toFixed(2)}</td>
+                        <td class="beneficio">$${beneficio}</td>
+                        <td class="observaciones-cell">${r.observaciones || '-'}</td>
+                        <td><button class="btn-danger" onclick="deleteRecord('${r.id}')">✕</button></td>
+                    </tr>
+                `;
+            }).join('');
+
+            document.getElementById('tableBody').innerHTML = html;
+        }
+
+        function toggleComplete(id) {
+            const record = records.find(r => r.id === id);
+            if (record) {
+                record.completed = !record.completed;
+                if (db) {
+                    db.collection('descuentos').doc(id).update({ completed: record.completed });
+                } else {
+                    localStorage.setItem('descuentosData', JSON.stringify(records));
+                }
+                renderTable();
+            }
+        }
+
+        function deleteRecord(id) {
+            if (confirm('¿Eliminar este descuento?')) {
+                records = records.filter(r => r.id !== id);
+                if (db) {
+                    db.collection('descuentos').doc(id).delete();
+                } else {
+                    localStorage.setItem('descuentosData', JSON.stringify(records));
+                }
+                renderTable();
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            const completed = records.filter(r => r.completed);
+            const total = records.length;
+            const totalBenefit = records.reduce((sum, r) => sum + (r.beneficio || r.precioOriginal - r.precioFinal), 0);
+            const avg = total > 0 ? totalBenefit / total : 0;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('totalBenefit').textContent = '$' + totalBenefit.toFixed(2);
+            document.getElementById('avgBenefit').textContent = '$' + avg.toFixed(2);
+        }
+
+        function downloadJSON() {
+            const data = JSON.stringify(records, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `descuentos-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function exportCSV() {
+            let csv = 'Proveedor,Artículo,Precio Original,Precio Final,Beneficio,Observaciones\n';
+            records.forEach(r => {
+                const beneficio = (r.beneficio || r.precioOriginal - r.precioFinal).toFixed(2);
+                csv += `"${r.proveedor}","${r.articulo}",${r.precioOriginal},${r.precioFinal},${beneficio},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `descuentos-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Descuentos y Beneficios - Búsqueda del Pikey</title>
+    <title>Descuentos y Beneficios - Reportes Mensuales</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -18,15 +18,6 @@
             background: #f5f2e8;
             color: #333;
             padding: 10px;
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: #fefdfb;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-            overflow: hidden;
         }
 
         .login-container {
@@ -64,13 +55,6 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 14px;
-            font-family: 'DM Sans', sans-serif;
-        }
-
-        .login-box input:focus {
-            outline: none;
-            border-color: #2c3e50;
-            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.1);
         }
 
         .login-box button {
@@ -83,19 +67,21 @@
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .login-box button:hover {
-            background: #1a252f;
-            transform: translateY(-1px);
         }
 
         .login-error {
             color: #e74c3c;
             margin-top: 15px;
-            font-size: 14px;
             min-height: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #fefdfb;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
         }
 
         .header {
@@ -113,84 +99,23 @@
             margin-bottom: 5px;
         }
 
-        .header-left p {
-            font-size: 12px;
-            opacity: 0.9;
-        }
-
-        .logout-btn {
-            background: rgba(255,255,255,0.2);
-            color: white;
-            border: 1px solid white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .logout-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-
         .content {
             padding: 25px;
         }
 
-        .search-input {
-            width: 100%;
-            padding: 14px 18px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 15px;
-            font-family: 'DM Sans', sans-serif;
-            margin-bottom: 15px;
-        }
-
-        .button-group {
+        .month-selector {
             display: flex;
             gap: 10px;
             margin-bottom: 25px;
-            flex-wrap: wrap;
+            align-items: center;
         }
 
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
+        .month-selector input {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
             font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-primary {
-            background: #2c3e50;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #1a252f;
-        }
-
-        .btn-secondary {
-            background: #ecf0f1;
-            color: #333;
-            border: 1px solid #ddd;
-        }
-
-        .btn-danger {
-            background: #e74c3c;
-            color: white;
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-
-        .btn-edit {
-            background: #3498db;
-            color: white;
-            padding: 6px 12px;
-            font-size: 12px;
         }
 
         .stats {
@@ -228,6 +153,63 @@
 
         .stat-card.highlight .value {
             color: #27ae60;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #2c3e50;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-edit {
+            background: #3498db;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-report {
+            background: #f39c12;
+            color: white;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 15px;
         }
 
         .form-section {
@@ -290,7 +272,6 @@
             padding: 14px;
             text-align: left;
             font-weight: 600;
-            font-size: 12px;
         }
 
         td {
@@ -336,6 +317,8 @@
             max-width: 500px;
             width: 90%;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .modal-title {
@@ -345,22 +328,28 @@
             color: #2c3e50;
         }
 
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
                 gap: 15px;
             }
 
+            .month-selector {
+                flex-direction: column;
+            }
+
             .form-grid {
                 grid-template-columns: 1fr;
-            }
-
-            table {
-                font-size: 12px;
-            }
-
-            th, td {
-                padding: 10px;
             }
         }
     </style>
@@ -370,7 +359,7 @@
     <div id="loginScreen" class="login-container">
         <div class="login-box">
             <h1>💰 Descuentos & Beneficios</h1>
-            <p>En búsqueda del Pikey - Giuliani S.A.</p>
+            <p>Reportes Mensuales</p>
             <input type="password" id="passwordInput" placeholder="Ingresa la contraseña" onkeypress="if(event.key==='Enter') login()">
             <button onclick="login()">Ingresar</button>
             <div id="loginError" class="login-error"></div>
@@ -382,17 +371,22 @@
         <div class="header">
             <div class="header-left">
                 <h1>💰 Descuentos y Beneficios</h1>
-                <p>En búsqueda del Pikey - Giuliani S.A.</p>
+                <p>Reportes Mensuales - Búsqueda del Pikey</p>
             </div>
-            <div class="header-right">
-                <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
-            </div>
+            <button class="logout-btn" onclick="logout()">Cerrar sesión</button>
         </div>
 
         <div class="content">
+            <!-- SELECTOR DE MES -->
+            <div class="month-selector">
+                <label style="font-weight: 600;">Selecciona mes:</label>
+                <input type="month" id="monthSelector" onchange="changeMonth()">
+            </div>
+
+            <!-- ESTADÍSTICAS -->
             <div class="stats">
                 <div class="stat-card">
-                    <h3>Total de Descuentos</h3>
+                    <h3>Total Descuentos</h3>
                     <div class="value" id="totalCount">0</div>
                 </div>
                 <div class="stat-card highlight">
@@ -400,58 +394,67 @@
                     <div class="value" id="totalBenefit">$0</div>
                 </div>
                 <div class="stat-card">
-                    <h3>Promedio por Descuento</h3>
+                    <h3>Promedio</h3>
                     <div class="value" id="avgBenefit">$0</div>
                 </div>
             </div>
 
-            <input type="text" id="searchInput" class="search-input" placeholder="Buscar por proveedor, artículo, precio...">
+            <!-- BÚSQUEDA -->
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar...">
 
+            <!-- BOTONES -->
             <div class="button-group">
                 <button class="btn-primary" onclick="toggleForm()">➕ Nuevo Descuento</button>
-                <button class="btn-secondary" onclick="downloadJSON()">💾 Descargar JSON</button>
-                <button class="btn-secondary" onclick="exportCSV()">📊 Exportar CSV</button>
+                <button class="btn-secondary" onclick="downloadJSON()">💾 Descargar</button>
+                <button class="btn-secondary" onclick="exportCSV()">📊 CSV</button>
+                <button class="btn-report" onclick="viewReports()">📋 Reportes Anteriores</button>
             </div>
 
+            <!-- FORMULARIO -->
             <div id="formSection" class="form-section" style="display: none;">
-                <div style="font-size: 16px; font-weight: 700; margin-bottom: 15px; color: #2c3e50;">Registrar Nuevo Descuento</div>
+                <div class="modal-title">Nuevo Descuento</div>
                 <div class="form-grid">
                     <div class="form-group">
+                        <label>Fecha *</label>
+                        <input type="date" id="fecha">
+                    </div>
+                    <div class="form-group">
                         <label>Proveedor *</label>
-                        <input type="text" id="proveedor" placeholder="Ej: Aceros del Centro">
+                        <input type="text" id="proveedor" placeholder="Proveedor">
                     </div>
                     <div class="form-group">
                         <label>Artículo *</label>
-                        <input type="text" id="articulo" placeholder="Ej: Tuercas M8">
+                        <input type="text" id="articulo" placeholder="Artículo">
                     </div>
                     <div class="form-group">
                         <label>Cantidad *</label>
-                        <input type="number" id="cantidad" placeholder="0" min="1" step="1">
+                        <input type="number" id="cantidad" min="1" step="1">
                     </div>
                     <div class="form-group">
                         <label>Precio Original *</label>
-                        <input type="number" id="precioOriginal" placeholder="0.00" step="0.01">
+                        <input type="number" id="precioOriginal" step="0.01">
                     </div>
                     <div class="form-group">
                         <label>Precio Final *</label>
-                        <input type="number" id="precioFinal" placeholder="0.00" step="0.01">
+                        <input type="number" id="precioFinal" step="0.01">
                     </div>
                     <div class="form-group full">
-                        <label>Observaciones (Opcional)</label>
-                        <input type="text" id="observaciones" placeholder="Detalles adicionales...">
+                        <label>Observaciones</label>
+                        <input type="text" id="observaciones">
                     </div>
                 </div>
                 <div class="button-group">
-                    <button class="btn-primary" onclick="addRecord()">Guardar Descuento</button>
+                    <button class="btn-primary" onclick="addRecord()">Guardar</button>
                     <button class="btn-secondary" onclick="toggleForm()">Cancelar</button>
                 </div>
             </div>
 
+            <!-- TABLA -->
             <div class="table-wrapper">
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 30px;">✓</th>
+                            <th style="width: 100px;">Fecha</th>
                             <th>Proveedor</th>
                             <th>Artículo</th>
                             <th style="width: 80px;">Cantidad</th>
@@ -480,23 +483,27 @@
             <div class="modal-title">Editar Descuento</div>
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Proveedor</label>
+                    <label>Fecha *</label>
+                    <input type="date" id="editFecha">
+                </div>
+                <div class="form-group">
+                    <label>Proveedor *</label>
                     <input type="text" id="editProveedor">
                 </div>
                 <div class="form-group">
-                    <label>Artículo</label>
+                    <label>Artículo *</label>
                     <input type="text" id="editArticulo">
                 </div>
                 <div class="form-group">
-                    <label>Cantidad</label>
+                    <label>Cantidad *</label>
                     <input type="number" id="editCantidad" min="1" step="1">
                 </div>
                 <div class="form-group">
-                    <label>Precio Original</label>
+                    <label>Precio Original *</label>
                     <input type="number" id="editPrecioOriginal" step="0.01">
                 </div>
                 <div class="form-group">
-                    <label>Precio Final</label>
+                    <label>Precio Final *</label>
                     <input type="number" id="editPrecioFinal" step="0.01">
                 </div>
                 <div class="form-group full">
@@ -505,8 +512,21 @@
                 </div>
             </div>
             <div class="button-group">
-                <button class="btn-primary" onclick="saveEdit()">Guardar cambios</button>
+                <button class="btn-primary" onclick="saveEdit()">Guardar</button>
                 <button class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL REPORTES -->
+    <div id="reportsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Reportes Anteriores</div>
+            <div id="reportsList" style="max-height: 400px; overflow-y: auto;">
+                Cargando...
+            </div>
+            <div class="button-group" style="margin-top: 20px;">
+                <button class="btn-secondary" onclick="closeReportsModal()">Cerrar</button>
             </div>
         </div>
     </div>
@@ -519,17 +539,23 @@
         let supabase = null;
         let records = [];
         let currentEditId = null;
+        let currentMonth = null;
 
-        // Función para formatear números al estilo argentino (1.000.000)
         function formatNumber(num) {
-            const number = Math.round(num); // Sin decimales
+            const number = Math.round(num);
             return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        function getCurrentMonth() {
+            const now = new Date();
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         }
 
         window.addEventListener('load', async () => {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log('Supabase inicializado');
             checkLogin();
+            currentMonth = getCurrentMonth();
+            document.getElementById('monthSelector').value = currentMonth;
         });
 
         function checkLogin() {
@@ -540,16 +566,13 @@
 
         function login() {
             const password = document.getElementById('passwordInput').value;
-            const errorDiv = document.getElementById('loginError');
-
             if (password === PASSWORD) {
                 sessionStorage.setItem('sessionToken', PASSWORD);
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
                 loadRecords();
-                document.getElementById('searchInput').addEventListener('input', renderTable);
             } else {
-                errorDiv.textContent = 'Contraseña incorrecta';
+                document.getElementById('loginError').textContent = 'Contraseña incorrecta';
             }
         }
 
@@ -566,12 +589,24 @@
             loadRecords();
         }
 
+        function changeMonth() {
+            currentMonth = document.getElementById('monthSelector').value;
+            loadRecords();
+        }
+
         async function loadRecords() {
             try {
+                const [year, month] = currentMonth.split('-');
+                const startDate = `${year}-${month}-01`;
+                const endDate = new Date(year, month, 0);
+                const endDateStr = `${year}-${month}-${String(endDate.getDate()).padStart(2, '0')}`;
+
                 const { data, error } = await supabase
                     .from('descuentos')
                     .select('*')
-                    .order('created_at', { ascending: false });
+                    .gte('fecha', startDate)
+                    .lte('fecha', endDateStr)
+                    .order('fecha', { ascending: false });
 
                 if (error) {
                     console.error('Error:', error);
@@ -582,16 +617,20 @@
                 renderTable();
                 updateStats();
             } catch (e) {
-                console.error('Error cargando:', e);
+                console.error('Error:', e);
             }
         }
 
         function toggleForm() {
-            document.getElementById('formSection').style.display = 
-                document.getElementById('formSection').style.display === 'none' ? 'block' : 'none';
+            const form = document.getElementById('formSection');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'block') {
+                document.getElementById('fecha').valueAsDate = new Date();
+            }
         }
 
         async function addRecord() {
+            const fecha = document.getElementById('fecha').value;
             const proveedor = document.getElementById('proveedor').value;
             const articulo = document.getElementById('articulo').value;
             const cantidad = parseInt(document.getElementById('cantidad').value) || 1;
@@ -599,15 +638,15 @@
             const precioFinal = parseFloat(document.getElementById('precioFinal').value);
             const observaciones = document.getElementById('observaciones').value;
 
-            if (!proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
-                alert('Completa todos los campos obligatorios');
+            if (!fecha || !proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
+                alert('Completa campos obligatorios');
                 return;
             }
 
             const beneficio = (precioOriginal - precioFinal) * cantidad;
 
             const { error } = await supabase.from('descuentos').insert([{
-                fecha: new Date().toISOString().split('T')[0],
+                fecha,
                 proveedor,
                 articulo,
                 cantidad,
@@ -623,6 +662,7 @@
                 return;
             }
 
+            document.getElementById('fecha').value = '';
             document.getElementById('proveedor').value = '';
             document.getElementById('articulo').value = '';
             document.getElementById('cantidad').value = '';
@@ -637,22 +677,23 @@
             const search = document.getElementById('searchInput').value.toLowerCase();
 
             let filtered = records.filter(r => {
-                const text = `${r.proveedor} ${r.articulo} ${r.cantidad} ${r.precio_original} ${r.precio_final} ${r.observaciones}`.toLowerCase();
+                const text = `${r.fecha} ${r.proveedor} ${r.articulo} ${r.cantidad} ${r.precio_original} ${r.precio_final} ${r.observaciones}`.toLowerCase();
                 return text.includes(search);
             });
 
             if (filtered.length === 0) {
                 document.getElementById('tableBody').innerHTML = 
-                    '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #95a5a6;">Sin resultados</td></tr>';
+                    '<tr><td colspan="9" style="text-align: center; padding: 40px;">Sin descuentos este mes</td></tr>';
                 return;
             }
 
             const html = filtered.map(r => {
                 const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad);
+                const fecha = new Date(r.fecha + 'T00:00:00').toLocaleDateString('es-AR');
 
                 return `
                     <tr>
-                        <td><input type="checkbox" ${r.completed ? 'checked' : ''} onchange="toggleComplete('${r.id}')"></td>
+                        <td>${fecha}</td>
                         <td>${r.proveedor}</td>
                         <td>${r.articulo}</td>
                         <td>${r.cantidad}</td>
@@ -669,7 +710,6 @@
             }).join('');
 
             document.getElementById('tableBody').innerHTML = html;
-            document.getElementById('searchInput').addEventListener('input', renderTable);
         }
 
         function openEditModal(id) {
@@ -677,6 +717,7 @@
             if (!record) return;
 
             currentEditId = id;
+            document.getElementById('editFecha').value = record.fecha;
             document.getElementById('editProveedor').value = record.proveedor;
             document.getElementById('editArticulo').value = record.articulo;
             document.getElementById('editCantidad').value = record.cantidad;
@@ -695,6 +736,7 @@
         async function saveEdit() {
             if (!currentEditId) return;
 
+            const fecha = document.getElementById('editFecha').value;
             const proveedor = document.getElementById('editProveedor').value;
             const articulo = document.getElementById('editArticulo').value;
             const cantidad = parseInt(document.getElementById('editCantidad').value);
@@ -702,8 +744,8 @@
             const precioFinal = parseFloat(document.getElementById('editPrecioFinal').value);
             const observaciones = document.getElementById('editObservaciones').value;
 
-            if (!proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
-                alert('Completa todos los campos obligatorios');
+            if (!fecha || !proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
+                alert('Completa campos obligatorios');
                 return;
             }
 
@@ -712,6 +754,7 @@
             const { error } = await supabase
                 .from('descuentos')
                 .update({
+                    fecha,
                     proveedor,
                     articulo,
                     cantidad,
@@ -731,19 +774,8 @@
             await loadRecords();
         }
 
-        async function toggleComplete(id) {
-            const record = records.find(r => r.id === id);
-            if (record) {
-                await supabase
-                    .from('descuentos')
-                    .update({ completed: !record.completed })
-                    .eq('id', id);
-                await loadRecords();
-            }
-        }
-
         async function deleteRecord(id) {
-            if (confirm('¿Eliminar este descuento?')) {
+            if (confirm('¿Eliminar?')) {
                 await supabase.from('descuentos').delete().eq('id', id);
                 await loadRecords();
             }
@@ -759,29 +791,69 @@
             document.getElementById('avgBenefit').textContent = '$' + formatNumber(avg);
         }
 
+        async function viewReports() {
+            const { data } = await supabase
+                .from('descuentos')
+                .select('fecha')
+                .order('fecha', { ascending: false });
+
+            const months = new Set();
+            if (data) {
+                data.forEach(r => {
+                    const [year, month] = r.fecha.split('-');
+                    months.add(`${year}-${month}`);
+                });
+            }
+
+            let html = '<div style="padding: 10px 0;">';
+            Array.from(months).sort().reverse().forEach(month => {
+                const [year, m] = month.split('-');
+                const date = new Date(year, parseInt(m) - 1);
+                const monthName = date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+                html += `<div style="padding: 10px; border-bottom: 1px solid #ddd; cursor: pointer;" onclick="selectReport('${month}')">${monthName}</div>`;
+            });
+            html += '</div>';
+
+            document.getElementById('reportsList').innerHTML = html || 'Sin reportes anteriores';
+            document.getElementById('reportsModal').classList.add('active');
+        }
+
+        function selectReport(month) {
+            document.getElementById('monthSelector').value = month;
+            currentMonth = month;
+            closeReportsModal();
+            loadRecords();
+        }
+
+        function closeReportsModal() {
+            document.getElementById('reportsModal').classList.remove('active');
+        }
+
         function downloadJSON() {
             const data = JSON.stringify(records, null, 2);
             const blob = new Blob([data], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `descuentos-${new Date().toISOString().split('T')[0]}.json`;
+            a.download = `descuentos-${currentMonth}.json`;
             a.click();
         }
 
         function exportCSV() {
-            let csv = 'Proveedor,Artículo,Cantidad,Precio Original,Precio Final,Beneficio,Observaciones\n';
+            let csv = 'Fecha,Proveedor,Artículo,Cantidad,Precio Original,Precio Final,Beneficio,Observaciones\n';
             records.forEach(r => {
                 const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad);
-                csv += `"${r.proveedor}","${r.articulo}",${r.cantidad},${Math.round(r.precio_original)},${Math.round(r.precio_final)},${Math.round(beneficio)},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
+                csv += `${r.fecha},"${r.proveedor}","${r.articulo}",${r.cantidad},${Math.round(r.precio_original)},${Math.round(r.precio_final)},${Math.round(beneficio)},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `descuentos-${new Date().toISOString().split('T')[0]}.csv`;
+            a.download = `descuentos-${currentMonth}.csv`;
             a.click();
         }
+
+        document.getElementById('searchInput').addEventListener('input', renderTable);
     </script>
 </body>
 </html>

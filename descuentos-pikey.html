@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Descuentos y Beneficios - Búsqueda del Pikey</title>
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -123,12 +122,6 @@
             text-align: right;
         }
 
-        .user-info {
-            font-size: 12px;
-            margin-bottom: 10px;
-            opacity: 0.9;
-        }
-
         .logout-btn {
             background: rgba(255,255,255,0.2);
             color: white;
@@ -218,6 +211,17 @@
 
         .btn-danger:hover {
             background: #c0392b;
+        }
+
+        .btn-edit {
+            background: #3498db;
+            color: white;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-edit:hover {
+            background: #2980b9;
         }
 
         .stats {
@@ -349,10 +353,6 @@
             background: #f9f8f6;
         }
 
-        tr.completed {
-            opacity: 0.6;
-        }
-
         .price {
             font-weight: 600;
             color: #2c3e50;
@@ -375,30 +375,49 @@
             cursor: pointer;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #95a5a6;
-        }
-
         .sync-status {
             font-size: 11px;
             color: #27ae60;
             margin-top: 5px;
         }
 
-        .sync-status.syncing {
-            color: #f39c12;
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: #2c3e50;
         }
 
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
                 gap: 15px;
-            }
-
-            .header-right {
-                text-align: left;
             }
 
             .form-grid {
@@ -520,7 +539,7 @@
                             <th style="width: 120px;">Precio Final</th>
                             <th style="width: 100px;">Beneficio</th>
                             <th>Observaciones</th>
-                            <th style="width: 60px;">Acción</th>
+                            <th style="width: 100px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
@@ -535,36 +554,70 @@
         </div>
     </div>
 
+    <!-- MODAL EDITAR -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Editar Descuento</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Proveedor</label>
+                    <input type="text" id="editProveedor">
+                </div>
+                <div class="form-group">
+                    <label>Artículo</label>
+                    <input type="text" id="editArticulo">
+                </div>
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="editCantidad" min="1" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Precio Original</label>
+                    <input type="number" id="editPrecioOriginal" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Precio Final</label>
+                    <input type="number" id="editPrecioFinal" step="0.01">
+                </div>
+                <div class="form-group full">
+                    <label>Observaciones</label>
+                    <input type="text" id="editObservaciones">
+                </div>
+            </div>
+            <div class="button-group">
+                <button class="btn-primary" onclick="saveEdit()">Guardar cambios</button>
+                <button class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // ⚠️ REEMPLAZA ESTOS VALORES CON TUS CREDENCIALES DE SUPABASE ⚠️
+        const SUPABASE_URL = "TU_URL_AQUI";
+        const SUPABASE_KEY = "TU_KEY_AQUI";
+
+        let supabase = null;
         let records = [];
-        let db = null;
-        let isLoggedIn = false;
+        let currentEditId = null;
         const PASSWORD = "comprasG2026";
 
-        // INICIALIZAR FIREBASE
         window.addEventListener('load', () => {
-            initFirebase();
+            initSupabase();
             checkLogin();
         });
 
-        function initFirebase() {
-            const config = {
-                apiKey: "AIzaSyC4OGfBY2apcx5RCOWuZXI4r4ukQRNxe0I",
-                projectId: "giuliani-2026"
-            };
-
+        function initSupabase() {
             try {
-                const app = firebase.initializeApp(config);
-                db = firebase.firestore(app);
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('Supabase inicializado');
             } catch (e) {
-                console.log('Firebase inicializado');
+                console.error('Error inicializando Supabase:', e);
             }
         }
 
         function checkLogin() {
             const sessionToken = sessionStorage.getItem('sessionToken');
             if (sessionToken === PASSWORD) {
-                isLoggedIn = true;
                 showMainApp();
             }
         }
@@ -575,22 +628,18 @@
 
             if (password === PASSWORD) {
                 sessionStorage.setItem('sessionToken', PASSWORD);
-                isLoggedIn = true;
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('mainApp').style.display = 'block';
                 loadRecords();
                 document.getElementById('searchInput').addEventListener('input', renderTable);
             } else {
                 errorDiv.textContent = 'Contraseña incorrecta';
-                errorDiv.style.display = 'block';
             }
         }
 
         function logout() {
             sessionStorage.removeItem('sessionToken');
-            isLoggedIn = false;
             document.getElementById('passwordInput').value = '';
-            document.getElementById('loginError').textContent = '';
             document.getElementById('mainApp').style.display = 'none';
             document.getElementById('loginScreen').style.display = 'flex';
         }
@@ -603,30 +652,43 @@
         }
 
         function loadRecords() {
-            if (!db) return;
+            if (!supabase) return;
 
             updateSyncStatus('Sincronizando...');
 
-            db.collection('descuentos')
-                .orderBy('fecha', 'desc')
-                .onSnapshot(snapshot => {
-                    records = [];
-                    snapshot.forEach(doc => {
-                        records.push({ id: doc.id, ...doc.data() });
-                    });
-                    renderTable();
-                    updateStats();
-                    updateSyncStatus('Sincronizado');
-                }, error => {
-                    console.error('Error cargando:', error);
-                    updateSyncStatus('Error en sincronización');
-                });
+            supabase
+                .from('descuentos')
+                .on('*', payload => {
+                    loadData();
+                })
+                .subscribe();
+
+            loadData();
+        }
+
+        async function loadData() {
+            try {
+                const { data, error } = await supabase
+                    .from('descuentos')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    updateSyncStatus('Error: ' + error.message);
+                    return;
+                }
+
+                records = data || [];
+                renderTable();
+                updateStats();
+                updateSyncStatus('Sincronizado');
+            } catch (e) {
+                updateSyncStatus('Error: ' + e.message);
+            }
         }
 
         function updateSyncStatus(status) {
-            const statusEl = document.getElementById('syncStatus');
-            statusEl.textContent = status;
-            statusEl.classList.toggle('syncing', status.includes('Sincronizando'));
+            document.getElementById('syncStatus').textContent = status;
         }
 
         function toggleForm() {
@@ -634,7 +696,7 @@
                 document.getElementById('formSection').style.display === 'none' ? 'block' : 'none';
         }
 
-        function addRecord() {
+        async function addRecord() {
             const proveedor = document.getElementById('proveedor').value;
             const articulo = document.getElementById('articulo').value;
             const cantidad = parseInt(document.getElementById('cantidad').value) || 1;
@@ -647,7 +709,6 @@
                 return;
             }
 
-            // Beneficio = (Precio Original - Precio Final) * Cantidad
             const beneficio = (precioOriginal - precioFinal) * cantidad;
 
             const newRecord = {
@@ -655,31 +716,30 @@
                 proveedor,
                 articulo,
                 cantidad,
-                precioOriginal,
-                precioFinal,
+                precio_original: precioOriginal,
+                precio_final: precioFinal,
                 beneficio,
                 observaciones,
                 completed: false
             };
 
-            if (db) {
-                updateSyncStatus('Guardando...');
-                db.collection('descuentos').add(newRecord)
-                    .then(() => {
-                        // Limpiar formulario
-                        document.getElementById('proveedor').value = '';
-                        document.getElementById('articulo').value = '';
-                        document.getElementById('cantidad').value = '';
-                        document.getElementById('precioOriginal').value = '';
-                        document.getElementById('precioFinal').value = '';
-                        document.getElementById('observaciones').value = '';
-                        toggleForm();
-                        updateSyncStatus('Guardado');
-                    })
-                    .catch(err => {
-                        console.error('Error:', err);
-                        updateSyncStatus('Error al guardar');
-                    });
+            if (!supabase) return;
+
+            updateSyncStatus('Guardando...');
+            const { error } = await supabase.from('descuentos').insert([newRecord]);
+
+            if (error) {
+                updateSyncStatus('Error: ' + error.message);
+                alert('Error: ' + error.message);
+            } else {
+                document.getElementById('proveedor').value = '';
+                document.getElementById('articulo').value = '';
+                document.getElementById('cantidad').value = '';
+                document.getElementById('precioOriginal').value = '';
+                document.getElementById('precioFinal').value = '';
+                document.getElementById('observaciones').value = '';
+                toggleForm();
+                updateSyncStatus('Guardado');
             }
         }
 
@@ -687,7 +747,7 @@
             const search = document.getElementById('searchInput').value.toLowerCase();
 
             let filtered = records.filter(r => {
-                const text = `${r.proveedor} ${r.articulo} ${r.cantidad} ${r.precioOriginal} ${r.precioFinal} ${r.observaciones}`.toLowerCase();
+                const text = `${r.proveedor} ${r.articulo} ${r.cantidad} ${r.precio_original} ${r.precio_final} ${r.observaciones}`.toLowerCase();
                 return text.includes(search);
             });
 
@@ -698,19 +758,22 @@
             }
 
             const html = filtered.map(r => {
-                const beneficio = (r.beneficio || (r.precioOriginal - r.precioFinal) * r.cantidad).toFixed(2);
+                const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad).toFixed(2);
 
                 return `
-                    <tr class="${r.completed ? 'completed' : ''}">
+                    <tr>
                         <td><input type="checkbox" class="checkbox" ${r.completed ? 'checked' : ''} onchange="toggleComplete('${r.id}')"></td>
                         <td>${r.proveedor}</td>
                         <td>${r.articulo}</td>
                         <td>${r.cantidad}</td>
-                        <td class="price">$${parseFloat(r.precioOriginal).toFixed(2)}</td>
-                        <td class="price">$${parseFloat(r.precioFinal).toFixed(2)}</td>
+                        <td class="price">$${parseFloat(r.precio_original).toFixed(2)}</td>
+                        <td class="price">$${parseFloat(r.precio_final).toFixed(2)}</td>
                         <td class="beneficio">$${beneficio}</td>
                         <td class="observaciones-cell">${r.observaciones || '-'}</td>
-                        <td><button class="btn-danger" onclick="deleteRecord('${r.id}')">✕</button></td>
+                        <td>
+                            <button class="btn-edit" onclick="openEditModal('${r.id}')">✏️ Editar</button>
+                            <button class="btn-danger" onclick="deleteRecord('${r.id}')">✕ Eliminar</button>
+                        </td>
                     </tr>
                 `;
             }).join('');
@@ -718,40 +781,104 @@
             document.getElementById('tableBody').innerHTML = html;
         }
 
-        function toggleComplete(id) {
+        function openEditModal(id) {
             const record = records.find(r => r.id === id);
-            if (record && db) {
-                updateSyncStatus('Actualizando...');
-                db.collection('descuentos').doc(id).update({ 
-                    completed: !record.completed 
-                }).then(() => {
-                    updateSyncStatus('Actualizado');
-                }).catch(err => {
-                    console.error('Error:', err);
-                    updateSyncStatus('Error');
-                });
+            if (!record) return;
+
+            currentEditId = id;
+            document.getElementById('editProveedor').value = record.proveedor;
+            document.getElementById('editArticulo').value = record.articulo;
+            document.getElementById('editCantidad').value = record.cantidad;
+            document.getElementById('editPrecioOriginal').value = record.precio_original;
+            document.getElementById('editPrecioFinal').value = record.precio_final;
+            document.getElementById('editObservaciones').value = record.observaciones || '';
+
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            currentEditId = null;
+        }
+
+        async function saveEdit() {
+            if (!currentEditId || !supabase) return;
+
+            const proveedor = document.getElementById('editProveedor').value;
+            const articulo = document.getElementById('editArticulo').value;
+            const cantidad = parseInt(document.getElementById('editCantidad').value);
+            const precioOriginal = parseFloat(document.getElementById('editPrecioOriginal').value);
+            const precioFinal = parseFloat(document.getElementById('editPrecioFinal').value);
+            const observaciones = document.getElementById('editObservaciones').value;
+
+            if (!proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
+                alert('Completa los campos obligatorios');
+                return;
+            }
+
+            const beneficio = (precioOriginal - precioFinal) * cantidad;
+
+            updateSyncStatus('Actualizando...');
+            const { error } = await supabase
+                .from('descuentos')
+                .update({
+                    proveedor,
+                    articulo,
+                    cantidad,
+                    precio_original: precioOriginal,
+                    precio_final: precioFinal,
+                    beneficio,
+                    observaciones
+                })
+                .eq('id', currentEditId);
+
+            if (error) {
+                updateSyncStatus('Error: ' + error.message);
+                alert('Error: ' + error.message);
+            } else {
+                closeEditModal();
+                updateSyncStatus('Actualizado');
             }
         }
 
-        function deleteRecord(id) {
+        async function toggleComplete(id) {
+            const record = records.find(r => r.id === id);
+            if (record && supabase) {
+                updateSyncStatus('Actualizando...');
+                const { error } = await supabase
+                    .from('descuentos')
+                    .update({ completed: !record.completed })
+                    .eq('id', id);
+
+                if (error) {
+                    updateSyncStatus('Error');
+                } else {
+                    updateSyncStatus('Actualizado');
+                }
+            }
+        }
+
+        async function deleteRecord(id) {
             if (confirm('¿Eliminar este descuento?')) {
-                if (db) {
+                if (supabase) {
                     updateSyncStatus('Eliminando...');
-                    db.collection('descuentos').doc(id).delete()
-                        .then(() => {
-                            updateSyncStatus('Eliminado');
-                        })
-                        .catch(err => {
-                            console.error('Error:', err);
-                            updateSyncStatus('Error');
-                        });
+                    const { error } = await supabase
+                        .from('descuentos')
+                        .delete()
+                        .eq('id', id);
+
+                    if (error) {
+                        updateSyncStatus('Error');
+                    } else {
+                        updateSyncStatus('Eliminado');
+                    }
                 }
             }
         }
 
         function updateStats() {
             const total = records.length;
-            const totalBenefit = records.reduce((sum, r) => sum + (r.beneficio || (r.precioOriginal - r.precioFinal) * r.cantidad), 0);
+            const totalBenefit = records.reduce((sum, r) => sum + (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad), 0);
             const avg = total > 0 ? totalBenefit / total : 0;
 
             document.getElementById('totalCount').textContent = total;
@@ -772,8 +899,8 @@
         function exportCSV() {
             let csv = 'Proveedor,Artículo,Cantidad,Precio Original,Precio Final,Beneficio,Observaciones\n';
             records.forEach(r => {
-                const beneficio = (r.beneficio || (r.precioOriginal - r.precioFinal) * r.cantidad).toFixed(2);
-                csv += `"${r.proveedor}","${r.articulo}",${r.cantidad},${r.precioOriginal},${r.precioFinal},${beneficio},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
+                const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad).toFixed(2);
+                csv += `"${r.proveedor}","${r.articulo}",${r.cantidad},${r.precio_original},${r.precio_final},${beneficio},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);

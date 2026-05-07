@@ -520,6 +520,12 @@
         let records = [];
         let currentEditId = null;
 
+        // Función para formatear números al estilo argentino (1.000.000)
+        function formatNumber(num) {
+            const number = Math.round(num); // Sin decimales
+            return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
         window.addEventListener('load', async () => {
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             console.log('Supabase inicializado');
@@ -642,7 +648,7 @@
             }
 
             const html = filtered.map(r => {
-                const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad).toFixed(2);
+                const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad);
 
                 return `
                     <tr>
@@ -650,9 +656,9 @@
                         <td>${r.proveedor}</td>
                         <td>${r.articulo}</td>
                         <td>${r.cantidad}</td>
-                        <td class="price">$${parseFloat(r.precio_original).toFixed(2)}</td>
-                        <td class="price">$${parseFloat(r.precio_final).toFixed(2)}</td>
-                        <td class="beneficio">$${beneficio}</td>
+                        <td class="price">$${formatNumber(r.precio_original)}</td>
+                        <td class="price">$${formatNumber(r.precio_final)}</td>
+                        <td class="beneficio">$${formatNumber(beneficio)}</td>
                         <td>${r.observaciones || '-'}</td>
                         <td>
                             <button class="btn-edit" onclick="openEditModal('${r.id}')">✏️</button>
@@ -749,8 +755,8 @@
             const avg = total > 0 ? totalBenefit / total : 0;
 
             document.getElementById('totalCount').textContent = total;
-            document.getElementById('totalBenefit').textContent = '$' + totalBenefit.toFixed(2);
-            document.getElementById('avgBenefit').textContent = '$' + avg.toFixed(2);
+            document.getElementById('totalBenefit').textContent = '$' + formatNumber(totalBenefit);
+            document.getElementById('avgBenefit').textContent = '$' + formatNumber(avg);
         }
 
         function downloadJSON() {
@@ -766,8 +772,8 @@
         function exportCSV() {
             let csv = 'Proveedor,Artículo,Cantidad,Precio Original,Precio Final,Beneficio,Observaciones\n';
             records.forEach(r => {
-                const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad).toFixed(2);
-                csv += `"${r.proveedor}","${r.articulo}",${r.cantidad},${r.precio_original},${r.precio_final},${beneficio},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
+                const beneficio = (r.beneficio || (r.precio_original - r.precio_final) * r.cantidad);
+                csv += `"${r.proveedor}","${r.articulo}",${r.cantidad},${Math.round(r.precio_original)},${Math.round(r.precio_final)},${Math.round(beneficio)},"${(r.observaciones || '').replace(/"/g, '""')}"\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);

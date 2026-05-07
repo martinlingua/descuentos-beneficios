@@ -592,7 +592,6 @@
     </div>
 
     <script>
-        // ⚠️ REEMPLAZA ESTOS VALORES CON TUS CREDENCIALES DE SUPABASE ⚠️
         const SUPABASE_URL = "https://hhjcfuawfyxbdkktkkmn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_BjcUhvUle3Q-0jopsh8lvQ_O9GjjVFS";
 
@@ -609,9 +608,9 @@
         function initSupabase() {
             try {
                 supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                console.log('Supabase inicializado');
+                console.log('Supabase conectado');
             } catch (e) {
-                console.error('Error inicializando Supabase:', e);
+                console.error('Error Supabase:', e);
             }
         }
 

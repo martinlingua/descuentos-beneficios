@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Descuentos y Beneficios - Reportes Mensuales</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -261,6 +262,25 @@
             grid-column: 1 / -1;
         }
 
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
         .table-wrapper {
             overflow-x: auto;
             border-radius: 8px;
@@ -296,6 +316,13 @@
 
         tr.benefit-row {
             background-color: #f0fdf4 !important;
+        }
+
+        tr.permanent-badge::after {
+            content: "♾️ Permanente";
+            color: #27ae60;
+            font-size: 10px;
+            font-weight: 600;
         }
 
         .price {
@@ -371,6 +398,10 @@
             color: #2c3e50;
         }
 
+        .pdf-hidden {
+            display: none;
+        }
+
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -439,8 +470,9 @@
             <div class="button-group">
                 <button class="btn-primary" onclick="toggleForm()">➕ Nuevo Descuento</button>
                 <button class="btn-benefit" onclick="toggleBenefitForm()">⭐ Nuevo Beneficio</button>
-                <button class="btn-secondary" onclick="downloadJSON()">💾 Descargar</button>
+                <button class="btn-secondary" onclick="downloadJSON()">💾 JSON</button>
                 <button class="btn-secondary" onclick="exportCSV()">📊 CSV</button>
+                <button class="btn-report" onclick="exportPDF()">📄 PDF</button>
                 <button class="btn-report" onclick="viewReports()">📋 Reportes</button>
             </div>
 
@@ -493,14 +525,18 @@
                     </div>
                     <div class="form-group full">
                         <label>Tipo de Beneficio *</label>
-                        <input type="text" id="benefitTipo" placeholder="Ej: Mejora de plazo, Nuevo proveedor, Mayor stock">
+                        <input type="text" id="benefitTipo" placeholder="Ej: Mejora de plazo, Nuevo proveedor">
                     </div>
                     <div class="form-group full">
                         <label>Descripción *</label>
-                        <input type="text" id="benefitDescription" placeholder="Describe en detalle el beneficio obtenido">
+                        <input type="text" id="benefitDescription" placeholder="Describe el beneficio obtenido">
                     </div>
                 </div>
-                <div class="button-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="permanentBenefit">
+                    <label for="permanentBenefit">Beneficio Permanente (se mostrará en meses siguientes)</label>
+                </div>
+                <div class="button-group" style="margin-top: 20px;">
                     <button class="btn-benefit" onclick="addBenefit()">Guardar</button>
                     <button class="btn-secondary" onclick="toggleBenefitForm()">Cancelar</button>
                 </div>
@@ -592,7 +628,11 @@
                     <input type="text" id="editBenefitDescription">
                 </div>
             </div>
-            <div class="button-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="editPermanentBenefit">
+                <label for="editPermanentBenefit">Beneficio Permanente</label>
+            </div>
+            <div class="button-group" style="margin-top: 20px;">
                 <button class="btn-benefit" onclick="saveBenefitEdit()">Guardar</button>
                 <button class="btn-secondary" onclick="closeEditBenefitModal()">Cancelar</button>
             </div>
@@ -610,6 +650,9 @@
         </div>
     </div>
 
+    <!-- CONTENEDOR PDF (OCULTO) -->
+    <div id="pdfContent" class="pdf-hidden"></div>
+
     <script>
         const SUPABASE_URL = "https://hhjcfuawfyxbdkktkkmn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_BjcUhvUle3Q-0jopsh8lvQ_O9GjjVFS";
@@ -617,6 +660,7 @@
 
         let supabase = null;
         let records = [];
+        let allRecords = [];
         let currentEditId = null;
         let currentMonth = null;
 
@@ -692,7 +736,16 @@
                     return;
                 }
 
-                records = data || [];
+                // Agregar beneficios permanentes de meses anteriores
+                const { data: allData } = await supabase
+                    .from('descuentos')
+                    .select('*')
+                    .lt('fecha', startDate)
+                    .eq('tipo', 'beneficio')
+                    .eq('permanent', true);
+
+                records = (data || []).concat(allData || []);
+                allRecords = records;
                 renderTable();
                 updateStats();
             } catch (e) {
@@ -713,6 +766,7 @@
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
             if (form.style.display === 'block') {
                 document.getElementById('benefitFecha').valueAsDate = new Date();
+                document.getElementById('permanentBenefit').checked = false;
             }
         }
 
@@ -765,6 +819,7 @@
             const fecha = document.getElementById('benefitFecha').value;
             const benefitType = document.getElementById('benefitTipo').value;
             const benefitDescription = document.getElementById('benefitDescription').value;
+            const permanent = document.getElementById('permanentBenefit').checked;
 
             if (!fecha || !benefitType || !benefitDescription) {
                 alert('Completa todos los campos');
@@ -776,6 +831,7 @@
                 tipo: 'beneficio',
                 benefit_type: benefitType,
                 benefit_description: benefitDescription,
+                permanent,
                 completed: false
             }]);
 
@@ -787,6 +843,7 @@
             document.getElementById('benefitFecha').value = '';
             document.getElementById('benefitTipo').value = '';
             document.getElementById('benefitDescription').value = '';
+            document.getElementById('permanentBenefit').checked = false;
             toggleBenefitForm();
             await loadRecords();
         }
@@ -801,7 +858,7 @@
 
             if (filtered.length === 0) {
                 document.getElementById('tableBody').innerHTML = 
-                    '<tr><td colspan="10" style="text-align: center; padding: 40px;">Sin registros este mes</td></tr>';
+                    '<tr><td colspan="10" style="text-align: center; padding: 40px;">Sin registros</td></tr>';
                 return;
             }
 
@@ -809,11 +866,12 @@
                 const fecha = new Date(r.fecha + 'T00:00:00').toLocaleDateString('es-AR');
 
                 if (r.tipo === 'beneficio') {
+                    const permanentBadge = r.permanent ? ' ♾️ Permanente' : '';
                     return `
                         <tr class="benefit-row">
                             <td>${fecha}</td>
                             <td><span class="type-badge type-benefit">⭐ BENEFICIO</span></td>
-                            <td colspan="2"><strong>${r.benefit_type}</strong><br><small>${r.benefit_description}</small></td>
+                            <td colspan="2"><strong>${r.benefit_type}</strong>${permanentBadge}<br><small>${r.benefit_description}</small></td>
                             <td></td>
                             <td></td>
                             <td></td>
@@ -879,6 +937,7 @@
             document.getElementById('editBenefitFecha').value = record.fecha;
             document.getElementById('editBenefitTipo').value = record.benefit_type;
             document.getElementById('editBenefitDescription').value = record.benefit_description;
+            document.getElementById('editPermanentBenefit').checked = record.permanent || false;
 
             document.getElementById('editBenefitModal').classList.add('active');
         }
@@ -935,6 +994,7 @@
             const fecha = document.getElementById('editBenefitFecha').value;
             const benefitType = document.getElementById('editBenefitTipo').value;
             const benefitDescription = document.getElementById('editBenefitDescription').value;
+            const permanent = document.getElementById('editPermanentBenefit').checked;
 
             if (!fecha || !benefitType || !benefitDescription) {
                 alert('Completa todos los campos');
@@ -946,7 +1006,8 @@
                 .update({
                     fecha,
                     benefit_type: benefitType,
-                    benefit_description: benefitDescription
+                    benefit_description: benefitDescription,
+                    permanent
                 })
                 .eq('id', currentEditId);
 
@@ -975,6 +1036,144 @@
             document.getElementById('totalCount').textContent = total;
             document.getElementById('totalBenefit').textContent = '$' + formatNumber(totalBenefit);
             document.getElementById('avgBenefit').textContent = '$' + formatNumber(avg);
+        }
+
+        function exportPDF() {
+            const [year, month] = currentMonth.split('-');
+            const monthName = new Date(year, parseInt(month) - 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+            
+            const discounts = records.filter(r => r.tipo === 'descuento' && r.fecha.startsWith(currentMonth));
+            const benefits = records.filter(r => r.tipo === 'beneficio');
+            
+            const totalBenefit = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const avgBenefit = discounts.length > 0 ? totalBenefit / discounts.length : 0;
+
+            let html = `
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+                        h1 { color: #2c3e50; text-align: center; border-bottom: 3px solid #2c3e50; padding-bottom: 10px; }
+                        h2 { color: #2c3e50; margin-top: 30px; border-bottom: 2px solid #27ae60; }
+                        .intro { font-size: 14px; line-height: 1.6; margin: 20px 0; }
+                        .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 20px 0; }
+                        .stat { background: #f0f0f0; padding: 15px; border-left: 4px solid #2c3e50; }
+                        .stat-label { font-size: 12px; font-weight: bold; color: #666; }
+                        .stat-value { font-size: 20px; font-weight: bold; color: #2c3e50; margin-top: 5px; }
+                        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; }
+                        th { background: #2c3e50; color: white; padding: 10px; text-align: left; font-weight: bold; }
+                        td { padding: 8px; border-bottom: 1px solid #ddd; }
+                        tr:nth-child(even) { background: #f9f9f9; }
+                        .benefit-row { background: #f0fdf4; }
+                        .footer { margin-top: 30px; font-size: 11px; color: #666; text-align: center; }
+                    </style>
+                </head>
+                <body>
+                    <h1>Resumen de Acciones del Departamento de Compras</h1>
+                    <p style="text-align: center; font-size: 14px; color: #666;">Mes de ${monthName}</p>
+                    
+                    <div class="intro">
+                        <p>El presente reporte contiene el análisis detallado de descuentos y beneficios obtenidos en el departamento de compras durante el mes de ${monthName}. Se incluyen tanto los descuentos cuantificables (que generan ahorro directo) como los beneficios no cuantificables (mejoras en plazo, nuevos proveedores, etc.).</p>
+                    </div>
+
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-label">TOTAL DESCUENTOS</div>
+                            <div class="stat-value">${discounts.length}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">AHORRO TOTAL</div>
+                            <div class="stat-value">$${formatNumber(totalBenefit)}</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-label">PROMEDIO</div>
+                            <div class="stat-value">$${formatNumber(avgBenefit)}</div>
+                        </div>
+                    </div>
+
+                    <h2>Descuentos Registrados</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Proveedor</th>
+                                <th>Artículo</th>
+                                <th>Cantidad</th>
+                                <th>Precio Original</th>
+                                <th>Precio Final</th>
+                                <th>Ahorro</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            discounts.forEach(d => {
+                const beneficio = (d.beneficio || (d.precio_original - d.precio_final) * d.cantidad);
+                const fecha = new Date(d.fecha + 'T00:00:00').toLocaleDateString('es-AR');
+                html += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td>${d.proveedor}</td>
+                        <td>${d.articulo}</td>
+                        <td>${d.cantidad}</td>
+                        <td>$${formatNumber(d.precio_original)}</td>
+                        <td>$${formatNumber(d.precio_final)}</td>
+                        <td><strong>$${formatNumber(beneficio)}</strong></td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+
+                    <h2>Beneficios No Cuantificables</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Tipo</th>
+                                <th>Descripción</th>
+                                <th>Permanente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            benefits.forEach(b => {
+                const fecha = new Date(b.fecha + 'T00:00:00').toLocaleDateString('es-AR');
+                const permanent = b.permanent ? 'Sí ♾️' : 'No';
+                html += `
+                    <tr class="benefit-row">
+                        <td>${fecha}</td>
+                        <td>${b.benefit_type}</td>
+                        <td>${b.benefit_description}</td>
+                        <td>${permanent}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+
+                    <div class="footer">
+                        <p>Reporte generado automáticamente - ${new Date().toLocaleDateString('es-AR')}</p>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            const opt = {
+                margin: 10,
+                filename: `descuentos-${currentMonth}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+            };
+
+            html2pdf().set(opt).from(html).save();
         }
 
         async function viewReports() {

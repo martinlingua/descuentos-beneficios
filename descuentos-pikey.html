@@ -147,11 +147,19 @@
             color: #2c3e50;
         }
 
-        .stat-card.highlight {
+        .stat-card.discount {
+            border-left-color: #3498db;
+        }
+
+        .stat-card.discount .value {
+            color: #3498db;
+        }
+
+        .stat-card.benefit {
             border-left-color: #27ae60;
         }
 
-        .stat-card.highlight .value {
+        .stat-card.benefit .value {
             color: #27ae60;
         }
 
@@ -449,17 +457,17 @@
 
             <!-- ESTADÍSTICAS -->
             <div class="stats">
-                <div class="stat-card">
-                    <h3>Total Descuentos</h3>
-                    <div class="value" id="totalCount">0</div>
+                <div class="stat-card discount">
+                    <h3>Ahorro de Descuentos</h3>
+                    <div class="value" id="discountAhorro">$0</div>
                 </div>
-                <div class="stat-card highlight">
+                <div class="stat-card benefit">
+                    <h3>Ahorro de Beneficios</h3>
+                    <div class="value" id="benefitAhorro">$0</div>
+                </div>
+                <div class="stat-card">
                     <h3>Ahorro Total</h3>
-                    <div class="value" id="totalBenefit">$0</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Promedio</h3>
-                    <div class="value" id="avgBenefit">$0</div>
+                    <div class="value" id="totalAhorro">$0</div>
                 </div>
             </div>
 
@@ -1126,16 +1134,13 @@
             const discounts = records.filter(r => r.tipo === 'descuento');
             const benefits = records.filter(r => r.tipo === 'beneficio');
             
-            const totalDiscounts = discounts.length;
-            const totalDiscountAhorro = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
-            const totalBenefitAhorro = benefits.reduce((sum, r) => sum + (r.benefit_total || 0), 0);
-            
-            // Ahorro total = descuentos + beneficios con valor
-            const totalAhorro = totalDiscountAhorro + totalBenefitAhorro;
+            const discountAhorro = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const benefitAhorro = benefits.reduce((sum, r) => sum + (r.benefit_total || 0), 0);
+            const totalAhorro = discountAhorro + benefitAhorro;
 
-            document.getElementById('totalCount').textContent = totalDiscounts;
-            document.getElementById('totalBenefit').textContent = '$' + formatNumber(totalAhorro);
-            document.getElementById('avgBenefit').textContent = '$' + formatNumber(totalAhorro);
+            document.getElementById('discountAhorro').textContent = '$' + formatNumber(discountAhorro);
+            document.getElementById('benefitAhorro').textContent = '$' + formatNumber(benefitAhorro);
+            document.getElementById('totalAhorro').textContent = '$' + formatNumber(totalAhorro);
         }
 
         function exportPDF() {
@@ -1188,12 +1193,12 @@
 
                     <div class="stats">
                         <div class="stat">
-                            <div class="stat-label">TOTAL DESCUENTOS</div>
-                            <div class="stat-value">${discounts.length}</div>
+                            <div class="stat-label">AHORRO DE DESCUENTOS</div>
+                            <div class="stat-value">$${formatNumber(totalDiscountAhorro)}</div>
                         </div>
                         <div class="stat">
-                            <div class="stat-label">TOTAL BENEFICIOS</div>
-                            <div class="stat-value">${totalBenefitsCount}</div>
+                            <div class="stat-label">AHORRO DE BENEFICIOS</div>
+                            <div class="stat-value">$${formatNumber(totalBenefitAhorro)}</div>
                         </div>
                         <div class="stat">
                             <div class="stat-label">AHORRO TOTAL</div>

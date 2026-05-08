@@ -1044,29 +1044,56 @@
             }
 
             const record = allRecords.find(r => r.id === currentEditId);
-            
-            // Si es un beneficio permanente de un mes anterior y estoy en un mes posterior
-            // Crear una nueva versión para este mes en lugar de editar la anterior
-            if (record && record.permanent && record.fecha.substring(0, 7) < currentMonth && record.parent_benefit_id) {
-                // Crear un nuevo registro para este mes
-                const { error: insertError } = await supabase.from('descuentos').insert([{
-                    fecha,
-                    tipo: 'beneficio',
-                    benefit_type: benefitType,
-                    benefit_description: benefitDescription,
-                    benefit_total: benefitTotal,
-                    permanent,
-                    parent_benefit_id: record.parent_benefit_id,
-                    mes_aplicacion: currentMonth,
-                    completed: false
-                }]);
+            if (!record) return;
 
-                if (insertError) {
-                    alert('Error: ' + insertError.message);
-                    return;
+            // Caso 1: Es un beneficio permanente que viene de un mes anterior
+            // Crear un nuevo registro para este mes en lugar de editar el anterior
+            if (record.permanent && record.fecha.substring(0, 7) < currentMonth) {
+                // Verificar si ya existe un registro para este mes con el mismo parent_benefit_id
+                const existingThisMonth = allRecords.find(r => 
+                    r.parent_benefit_id === record.parent_benefit_id && 
+                    r.fecha.substring(0, 7) === currentMonth &&
+                    r.tipo === 'beneficio'
+                );
+
+                if (existingThisMonth) {
+                    // Ya existe, actualizar ese registro
+                    const { error } = await supabase
+                        .from('descuentos')
+                        .update({
+                            fecha,
+                            benefit_type: benefitType,
+                            benefit_description: benefitDescription,
+                            benefit_total: benefitTotal,
+                            permanent
+                        })
+                        .eq('id', existingThisMonth.id);
+
+                    if (error) {
+                        alert('Error: ' + error.message);
+                        return;
+                    }
+                } else {
+                    // No existe, crear uno nuevo para este mes
+                    const { error } = await supabase.from('descuentos').insert([{
+                        fecha,
+                        tipo: 'beneficio',
+                        benefit_type: benefitType,
+                        benefit_description: benefitDescription,
+                        benefit_total: benefitTotal,
+                        permanent,
+                        parent_benefit_id: record.parent_benefit_id,
+                        mes_aplicacion: currentMonth,
+                        completed: false
+                    }]);
+
+                    if (error) {
+                        alert('Error: ' + error.message);
+                        return;
+                    }
                 }
             } else {
-                // Editar el registro actual (si es del mes actual)
+                // Caso 2: Es un beneficio del mes actual, editar normalmente
                 const { error } = await supabase
                     .from('descuentos')
                     .update({

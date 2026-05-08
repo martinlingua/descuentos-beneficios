@@ -531,6 +531,10 @@
                         <label>Descripción *</label>
                         <input type="text" id="benefitDescription" placeholder="Describe el beneficio obtenido">
                     </div>
+                    <div class="form-group">
+                        <label>Total en $ (Opcional)</label>
+                        <input type="number" id="benefitTotal" placeholder="0.00" step="0.01" min="0">
+                    </div>
                 </div>
                 <div class="checkbox-group">
                     <input type="checkbox" id="permanentBenefit">
@@ -554,7 +558,7 @@
                             <th style="width: 80px;">Cantidad</th>
                             <th style="width: 100px;">Precio Original</th>
                             <th style="width: 100px;">Precio Final</th>
-                            <th style="width: 100px;">Beneficio</th>
+                            <th style="width: 100px;">Total</th>
                             <th>Observaciones</th>
                             <th style="width: 80px;">Acciones</th>
                         </tr>
@@ -626,6 +630,10 @@
                 <div class="form-group full">
                     <label>Descripción *</label>
                     <input type="text" id="editBenefitDescription">
+                </div>
+                <div class="form-group">
+                    <label>Total en $ (Opcional)</label>
+                    <input type="number" id="editBenefitTotal" placeholder="0.00" step="0.01" min="0">
                 </div>
             </div>
             <div class="checkbox-group">
@@ -832,10 +840,11 @@
             const fecha = document.getElementById('benefitFecha').value;
             const benefitType = document.getElementById('benefitTipo').value;
             const benefitDescription = document.getElementById('benefitDescription').value;
+            const benefitTotal = parseFloat(document.getElementById('benefitTotal').value) || 0;
             const permanent = document.getElementById('permanentBenefit').checked;
 
             if (!fecha || !benefitType || !benefitDescription) {
-                alert('Completa todos los campos');
+                alert('Completa todos los campos obligatorios');
                 return;
             }
 
@@ -844,6 +853,7 @@
                 tipo: 'beneficio',
                 benefit_type: benefitType,
                 benefit_description: benefitDescription,
+                benefit_total: benefitTotal,
                 permanent,
                 completed: false
             }]);
@@ -856,6 +866,7 @@
             document.getElementById('benefitFecha').value = '';
             document.getElementById('benefitTipo').value = '';
             document.getElementById('benefitDescription').value = '';
+            document.getElementById('benefitTotal').value = '';
             document.getElementById('permanentBenefit').checked = false;
             toggleBenefitForm();
             await loadRecords();
@@ -880,6 +891,7 @@
 
                 if (r.tipo === 'beneficio') {
                     const permanentBadge = r.permanent ? ' ♾️ Permanente' : '';
+                    const benefitTotal = r.benefit_total || 0;
                     return `
                         <tr class="benefit-row">
                             <td>${fecha}</td>
@@ -888,7 +900,7 @@
                             <td></td>
                             <td></td>
                             <td></td>
-                            <td style="color: #7f8c8d;">-</td>
+                            <td class="beneficio">$${formatNumber(benefitTotal)}</td>
                             <td></td>
                             <td>
                                 <button class="btn-edit" onclick="openEditBenefit('${r.id}')">✏️</button>
@@ -950,6 +962,7 @@
             document.getElementById('editBenefitFecha').value = record.fecha;
             document.getElementById('editBenefitTipo').value = record.benefit_type;
             document.getElementById('editBenefitDescription').value = record.benefit_description;
+            document.getElementById('editBenefitTotal').value = record.benefit_total || 0;
             document.getElementById('editPermanentBenefit').checked = record.permanent || false;
 
             document.getElementById('editBenefitModal').classList.add('active');
@@ -1007,6 +1020,7 @@
             const fecha = document.getElementById('editBenefitFecha').value;
             const benefitType = document.getElementById('editBenefitTipo').value;
             const benefitDescription = document.getElementById('editBenefitDescription').value;
+            const benefitTotal = parseFloat(document.getElementById('editBenefitTotal').value) || 0;
             const permanent = document.getElementById('editPermanentBenefit').checked;
 
             if (!fecha || !benefitType || !benefitDescription) {
@@ -1020,6 +1034,7 @@
                     fecha,
                     benefit_type: benefitType,
                     benefit_description: benefitDescription,
+                    benefit_total: benefitTotal,
                     permanent
                 })
                 .eq('id', currentEditId);
@@ -1042,13 +1057,18 @@
 
         function updateStats() {
             const discounts = records.filter(r => r.tipo === 'descuento');
-            const total = discounts.length;
-            const totalBenefit = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
-            const avg = total > 0 ? totalBenefit / total : 0;
+            const benefits = records.filter(r => r.tipo === 'beneficio');
+            
+            const totalDiscounts = discounts.length;
+            const totalDiscountAhorro = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const totalBenefitAhorro = benefits.reduce((sum, r) => sum + (r.benefit_total || 0), 0);
+            
+            // Ahorro total = descuentos + beneficios con valor
+            const totalAhorro = totalDiscountAhorro + totalBenefitAhorro;
 
-            document.getElementById('totalCount').textContent = total;
-            document.getElementById('totalBenefit').textContent = '$' + formatNumber(totalBenefit);
-            document.getElementById('avgBenefit').textContent = '$' + formatNumber(avg);
+            document.getElementById('totalCount').textContent = totalDiscounts;
+            document.getElementById('totalBenefit').textContent = '$' + formatNumber(totalAhorro);
+            document.getElementById('avgBenefit').textContent = '$' + formatNumber(totalAhorro);
         }
 
         function exportPDF() {
@@ -1061,7 +1081,9 @@
             // Beneficios (ya filtrados en records, incluye permanentes)
             const benefits = records.filter(r => r.tipo === 'beneficio');
             
-            const totalBenefit = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const totalDiscountAhorro = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const totalBenefitAhorro = benefits.reduce((sum, r) => sum + (r.benefit_total || 0), 0);
+            const totalAhorro = totalDiscountAhorro + totalBenefitAhorro;
             const totalBenefitsCount = benefits.length;
 
             let html = `
@@ -1108,7 +1130,7 @@
                         </div>
                         <div class="stat">
                             <div class="stat-label">AHORRO TOTAL</div>
-                            <div class="stat-value">$${formatNumber(totalBenefit)}</div>
+                            <div class="stat-value">$${formatNumber(totalAhorro)}</div>
                         </div>
                     </div>
 
@@ -1166,6 +1188,7 @@
                                 <th>Fecha Aplicación</th>
                                 <th>Tipo de Beneficio</th>
                                 <th>Descripción</th>
+                                <th>Total</th>
                                 <th>Permanente</th>
                             </tr>
                         </thead>
@@ -1175,11 +1198,13 @@
                 benefits.forEach(b => {
                     const fecha = new Date(b.fecha + 'T00:00:00').toLocaleDateString('es-AR');
                     const permanentBadge = b.permanent ? '<span class="permanent-badge">♾️ Sí - Vigente</span>' : 'No';
+                    const benefitTotal = b.benefit_total || 0;
                     html += `
                         <tr class="benefit-row">
                             <td>${fecha}</td>
                             <td>${b.benefit_type}</td>
                             <td>${b.benefit_description}</td>
+                            <td><strong>$${formatNumber(benefitTotal)}</strong></td>
                             <td>${permanentBadge}</td>
                         </tr>
                     `;

@@ -1062,7 +1062,7 @@
             const benefits = records.filter(r => r.tipo === 'beneficio');
             
             const totalBenefit = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
-            const avgBenefit = discounts.length > 0 ? totalBenefit / discounts.length : 0;
+            const totalBenefitsCount = benefits.length;
 
             let html = `
                 <html>
@@ -1103,12 +1103,12 @@
                             <div class="stat-value">${discounts.length}</div>
                         </div>
                         <div class="stat">
-                            <div class="stat-label">AHORRO TOTAL</div>
-                            <div class="stat-value">$${formatNumber(totalBenefit)}</div>
+                            <div class="stat-label">TOTAL BENEFICIOS</div>
+                            <div class="stat-value">${totalBenefitsCount}</div>
                         </div>
                         <div class="stat">
-                            <div class="stat-label">PROMEDIO</div>
-                            <div class="stat-value">$${formatNumber(avgBenefit)}</div>
+                            <div class="stat-label">AHORRO TOTAL</div>
+                            <div class="stat-value">$${formatNumber(totalBenefit)}</div>
                         </div>
                     </div>
 

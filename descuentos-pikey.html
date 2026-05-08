@@ -743,30 +743,40 @@
                 // Filtrar para mostrar:
                 // 1. Descuentos del mes actual
                 // 2. Beneficios del mes actual
-                // 3. Beneficios permanentes de meses anteriores
-                records = allRecords.filter(r => {
-                    const recordMonth = r.fecha ? r.fecha.substring(0, 7) : '';
-                    
-                    // Descuentos del mes actual
-                    if (r.tipo === 'descuento' && recordMonth === currentMonth) {
-                        return true;
+                // 3. Beneficios permanentes: mostrar versión del mes actual si existe, sino copiar del mes anterior
+                records = [];
+
+                const recordMonth = currentMonth;
+                const discountsThisMonth = allRecords.filter(r => r.tipo === 'descuento' && r.fecha.substring(0, 7) === recordMonth);
+                const benefitsThisMonth = allRecords.filter(r => r.tipo === 'beneficio' && r.fecha.substring(0, 7) === recordMonth);
+
+                records.push(...discountsThisMonth);
+                records.push(...benefitsThisMonth);
+
+                // Para beneficios permanentes, si no existen en este mes pero existen en meses anteriores, mostrar los de meses anteriores
+                const permanentBenefits = allRecords.filter(r => 
+                    r.tipo === 'beneficio' && 
+                    r.permanent === true && 
+                    r.fecha.substring(0, 7) < recordMonth
+                );
+
+                // Agrupar por parent_benefit_id para evitar duplicados
+                const benefitsByParent = {};
+                permanentBenefits.forEach(b => {
+                    const key = b.parent_benefit_id || b.id;
+                    if (!benefitsByParent[key] || b.fecha > benefitsByParent[key].fecha) {
+                        benefitsByParent[key] = b;
                     }
-                    
-                    // Beneficios del mes actual
-                    if (r.tipo === 'beneficio' && recordMonth === currentMonth) {
-                        return true;
-                    }
-                    
-                    // Beneficios permanentes de meses anteriores (y que sean permanentes)
-                    if (r.tipo === 'beneficio' && r.permanent === true && recordMonth < currentMonth) {
-                        return true;
-                    }
-                    
-                    return false;
                 });
 
-                console.log('Records cargados:', records);
-                console.log('Mes actual:', currentMonth);
+                // Agregar los beneficios permanentes más recientes que no tienen versión en este mes
+                Object.values(benefitsByParent).forEach(b => {
+                    const hasVersionThisMonth = benefitsThisMonth.some(bt => bt.parent_benefit_id === b.parent_benefit_id || (b.parent_benefit_id === null && bt.id === b.id));
+                    if (!hasVersionThisMonth) {
+                        records.push(b);
+                    }
+                });
+
                 renderTable();
                 updateStats();
             } catch (e) {
@@ -848,6 +858,9 @@
                 return;
             }
 
+            // Si es permanente, crear un ID padre para rastrear todos los meses
+            const parentId = permanent ? `parent-${Date.now()}` : null;
+
             const { error } = await supabase.from('descuentos').insert([{
                 fecha,
                 tipo: 'beneficio',
@@ -855,6 +868,8 @@
                 benefit_description: benefitDescription,
                 benefit_total: benefitTotal,
                 permanent,
+                parent_benefit_id: parentId,
+                mes_aplicacion: currentMonth,
                 completed: false
             }]);
 
@@ -1028,20 +1043,45 @@
                 return;
             }
 
-            const { error } = await supabase
-                .from('descuentos')
-                .update({
+            const record = allRecords.find(r => r.id === currentEditId);
+            
+            // Si es un beneficio permanente de un mes anterior y estoy en un mes posterior
+            // Crear una nueva versión para este mes en lugar de editar la anterior
+            if (record && record.permanent && record.fecha.substring(0, 7) < currentMonth && record.parent_benefit_id) {
+                // Crear un nuevo registro para este mes
+                const { error: insertError } = await supabase.from('descuentos').insert([{
                     fecha,
+                    tipo: 'beneficio',
                     benefit_type: benefitType,
                     benefit_description: benefitDescription,
                     benefit_total: benefitTotal,
-                    permanent
-                })
-                .eq('id', currentEditId);
+                    permanent,
+                    parent_benefit_id: record.parent_benefit_id,
+                    mes_aplicacion: currentMonth,
+                    completed: false
+                }]);
 
-            if (error) {
-                alert('Error: ' + error.message);
-                return;
+                if (insertError) {
+                    alert('Error: ' + insertError.message);
+                    return;
+                }
+            } else {
+                // Editar el registro actual (si es del mes actual)
+                const { error } = await supabase
+                    .from('descuentos')
+                    .update({
+                        fecha,
+                        benefit_type: benefitType,
+                        benefit_description: benefitDescription,
+                        benefit_total: benefitTotal,
+                        permanent
+                    })
+                    .eq('id', currentEditId);
+
+                if (error) {
+                    alert('Error: ' + error.message);
+                    return;
+                }
             }
 
             closeEditBenefitModal();

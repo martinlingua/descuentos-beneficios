@@ -724,11 +724,10 @@
                 const endDate = new Date(year, month, 0);
                 const endDateStr = `${year}-${month}-${String(endDate.getDate()).padStart(2, '0')}`;
 
+                // Cargar TODOS los registros (no filtrados)
                 const { data, error } = await supabase
                     .from('descuentos')
                     .select('*')
-                    .gte('fecha', startDate)
-                    .lte('fecha', endDateStr)
                     .order('fecha', { ascending: false });
 
                 if (error) {
@@ -736,16 +735,33 @@
                     return;
                 }
 
-                // Agregar beneficios permanentes de meses anteriores
-                const { data: allData } = await supabase
-                    .from('descuentos')
-                    .select('*')
-                    .lt('fecha', startDate)
-                    .eq('tipo', 'beneficio')
-                    .eq('permanent', true);
+                allRecords = data || [];
 
-                records = (data || []).concat(allData || []);
-                allRecords = records;
+                // Filtrar para mostrar:
+                // 1. Descuentos del mes actual
+                // 2. Beneficios del mes actual
+                // 3. Beneficios permanentes de meses anteriores
+                records = allRecords.filter(r => {
+                    const recordMonth = r.fecha.substring(0, 7);
+                    
+                    // Descuentos del mes actual
+                    if (r.tipo === 'descuento' && recordMonth === currentMonth) {
+                        return true;
+                    }
+                    
+                    // Beneficios del mes actual
+                    if (r.tipo === 'beneficio' && recordMonth === currentMonth) {
+                        return true;
+                    }
+                    
+                    // Beneficios permanentes de meses anteriores
+                    if (r.tipo === 'beneficio' && r.permanent && recordMonth < currentMonth) {
+                        return true;
+                    }
+                    
+                    return false;
+                });
+
                 renderTable();
                 updateStats();
             } catch (e) {
@@ -1042,19 +1058,11 @@
             const [year, month] = currentMonth.split('-');
             const monthName = new Date(year, parseInt(month) - 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
             
-            // Descuentos del mes actual
-            const discounts = records.filter(r => r.tipo === 'descuento' && r.fecha.startsWith(currentMonth));
+            // Descuentos del mes actual (ya filtrados en records)
+            const discounts = records.filter(r => r.tipo === 'descuento');
             
-            // Beneficios del mes actual + beneficios permanentes que se aplican a este mes
-            const [currentYear, currentMonth2] = currentMonth.split('-');
-            const benefits = records.filter(r => {
-                if (r.tipo !== 'beneficio') return false;
-                // Beneficio del mes actual O beneficio permanente registrado antes de este mes
-                const benefitMonth = r.fecha.substring(0, 7);
-                if (benefitMonth === currentMonth) return true;
-                if (r.permanent && benefitMonth < currentMonth) return true;
-                return false;
-            });
+            // Beneficios (ya filtrados en records, incluye permanentes)
+            const benefits = records.filter(r => r.tipo === 'beneficio');
             
             const totalBenefit = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
             const avgBenefit = discounts.length > 0 ? totalBenefit / discounts.length : 0;

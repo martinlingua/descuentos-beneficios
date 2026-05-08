@@ -1042,8 +1042,19 @@
             const [year, month] = currentMonth.split('-');
             const monthName = new Date(year, parseInt(month) - 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
             
+            // Descuentos del mes actual
             const discounts = records.filter(r => r.tipo === 'descuento' && r.fecha.startsWith(currentMonth));
-            const benefits = records.filter(r => r.tipo === 'beneficio');
+            
+            // Beneficios del mes actual + beneficios permanentes que se aplican a este mes
+            const [currentYear, currentMonth2] = currentMonth.split('-');
+            const benefits = records.filter(r => {
+                if (r.tipo !== 'beneficio') return false;
+                // Beneficio del mes actual O beneficio permanente registrado antes de este mes
+                const benefitMonth = r.fecha.substring(0, 7);
+                if (benefitMonth === currentMonth) return true;
+                if (r.permanent && benefitMonth < currentMonth) return true;
+                return false;
+            });
             
             const totalBenefit = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
             const avgBenefit = discounts.length > 0 ? totalBenefit / discounts.length : 0;
@@ -1061,12 +1072,14 @@
                         .stat { background: #f0f0f0; padding: 15px; border-left: 4px solid #2c3e50; }
                         .stat-label { font-size: 12px; font-weight: bold; color: #666; }
                         .stat-value { font-size: 20px; font-weight: bold; color: #2c3e50; margin-top: 5px; }
-                        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; }
+                        table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 11px; }
                         th { background: #2c3e50; color: white; padding: 10px; text-align: left; font-weight: bold; }
                         td { padding: 8px; border-bottom: 1px solid #ddd; }
                         tr:nth-child(even) { background: #f9f9f9; }
                         .benefit-row { background: #f0fdf4; }
+                        .permanent-badge { color: #27ae60; font-weight: bold; }
                         .footer { margin-top: 30px; font-size: 11px; color: #666; text-align: center; }
+                        .no-data { color: #999; font-style: italic; }
                     </style>
                 </head>
                 <body>
@@ -1093,6 +1106,10 @@
                     </div>
 
                     <h2>Descuentos Registrados</h2>
+            `;
+
+            if (discounts.length > 0) {
+                html += `
                     <table>
                         <thead>
                             <tr>
@@ -1106,58 +1123,70 @@
                             </tr>
                         </thead>
                         <tbody>
-            `;
-
-            discounts.forEach(d => {
-                const beneficio = (d.beneficio || (d.precio_original - d.precio_final) * d.cantidad);
-                const fecha = new Date(d.fecha + 'T00:00:00').toLocaleDateString('es-AR');
-                html += `
-                    <tr>
-                        <td>${fecha}</td>
-                        <td>${d.proveedor}</td>
-                        <td>${d.articulo}</td>
-                        <td>${d.cantidad}</td>
-                        <td>$${formatNumber(d.precio_original)}</td>
-                        <td>$${formatNumber(d.precio_final)}</td>
-                        <td><strong>$${formatNumber(beneficio)}</strong></td>
-                    </tr>
                 `;
-            });
 
-            html += `
+                discounts.forEach(d => {
+                    const beneficio = (d.beneficio || (d.precio_original - d.precio_final) * d.cantidad);
+                    const fecha = new Date(d.fecha + 'T00:00:00').toLocaleDateString('es-AR');
+                    html += `
+                        <tr>
+                            <td>${fecha}</td>
+                            <td>${d.proveedor}</td>
+                            <td>${d.articulo}</td>
+                            <td>${d.cantidad}</td>
+                            <td>$${formatNumber(d.precio_original)}</td>
+                            <td>$${formatNumber(d.precio_final)}</td>
+                            <td><strong>$${formatNumber(beneficio)}</strong></td>
+                        </tr>
+                    `;
+                });
+
+                html += `
                         </tbody>
                     </table>
+                `;
+            } else {
+                html += `<p class="no-data">No hay descuentos registrados este mes.</p>`;
+            }
 
-                    <h2>Beneficios No Cuantificables</h2>
+            html += `<h2>Beneficios No Cuantificables</h2>`;
+
+            if (benefits.length > 0) {
+                html += `
                     <table>
                         <thead>
                             <tr>
-                                <th>Fecha</th>
-                                <th>Tipo</th>
+                                <th>Fecha Aplicación</th>
+                                <th>Tipo de Beneficio</th>
                                 <th>Descripción</th>
                                 <th>Permanente</th>
                             </tr>
                         </thead>
                         <tbody>
-            `;
-
-            benefits.forEach(b => {
-                const fecha = new Date(b.fecha + 'T00:00:00').toLocaleDateString('es-AR');
-                const permanent = b.permanent ? 'Sí ♾️' : 'No';
-                html += `
-                    <tr class="benefit-row">
-                        <td>${fecha}</td>
-                        <td>${b.benefit_type}</td>
-                        <td>${b.benefit_description}</td>
-                        <td>${permanent}</td>
-                    </tr>
                 `;
-            });
 
-            html += `
+                benefits.forEach(b => {
+                    const fecha = new Date(b.fecha + 'T00:00:00').toLocaleDateString('es-AR');
+                    const permanentBadge = b.permanent ? '<span class="permanent-badge">♾️ Sí - Vigente</span>' : 'No';
+                    html += `
+                        <tr class="benefit-row">
+                            <td>${fecha}</td>
+                            <td>${b.benefit_type}</td>
+                            <td>${b.benefit_description}</td>
+                            <td>${permanentBadge}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
                         </tbody>
                     </table>
+                `;
+            } else {
+                html += `<p class="no-data">No hay beneficios registrados este mes.</p>`;
+            }
 
+            html += `
                     <div class="footer">
                         <p>Reporte generado automáticamente - ${new Date().toLocaleDateString('es-AR')}</p>
                     </div>

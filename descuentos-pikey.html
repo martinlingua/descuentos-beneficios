@@ -1184,16 +1184,17 @@
             const [year, month] = currentMonth.split('-');
             const monthName = new Date(year, parseInt(month) - 1).toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
             
-            // Descuentos del mes actual (ya filtrados en records)
-            const discounts = records.filter(r => r.tipo === 'descuento');
+            // Separar descuentos por tipo
+            const discountsReal = records.filter(r => r.tipo === 'descuento' && r.discount_type === 'real');
+            const discountsProyecto = records.filter(r => r.tipo === 'descuento' && r.discount_type === 'proyecto');
             
             // Beneficios (ya filtrados en records, incluye permanentes)
             const benefits = records.filter(r => r.tipo === 'beneficio');
             
-            const totalDiscountAhorro = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
-            const totalBenefitAhorro = benefits.reduce((sum, r) => sum + (r.benefit_total || 0), 0);
-            const totalAhorro = totalDiscountAhorro + totalBenefitAhorro;
-            const totalBenefitsCount = benefits.length;
+            const realAhorro = discountsReal.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const proyectoAhorro = discountsProyecto.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const benefitAhorro = benefits.reduce((sum, r) => sum + (r.benefit_total || 0), 0);
+            const totalAhorro = realAhorro + proyectoAhorro + benefitAhorro;
 
             let html = `
                 <html>
@@ -1206,15 +1207,23 @@
                         .month-label { text-align: center; font-size: 14px; color: #666; margin: 0 0 15px 0; }
                         h2 { color: #2c3e50; margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid #27ae60; font-size: 16px; }
                         .intro { font-size: 13px; line-height: 1.5; margin: 15px 0; }
-                        .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 15px 0; }
-                        .stat { background: #f0f0f0; padding: 12px; border-left: 4px solid #2c3e50; }
-                        .stat-label { font-size: 11px; font-weight: bold; color: #666; }
-                        .stat-value { font-size: 18px; font-weight: bold; color: #2c3e50; margin-top: 5px; }
+                        .stats { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin: 15px 0; }
+                        .stat { background: #f0f0f0; padding: 10px; border-left: 4px solid #2c3e50; }
+                        .stat.real { border-left-color: #27ae60; }
+                        .stat.proyecto { border-left-color: #f39c12; }
+                        .stat.benefit { border-left-color: #3498db; }
+                        .stat-label { font-size: 10px; font-weight: bold; color: #666; }
+                        .stat-value { font-size: 16px; font-weight: bold; color: #2c3e50; margin-top: 4px; }
+                        .stat.real .stat-value { color: #27ae60; }
+                        .stat.proyecto .stat-value { color: #f39c12; }
+                        .stat.benefit .stat-value { color: #3498db; }
                         table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10px; }
                         th { background: #2c3e50; color: white; padding: 8px; text-align: left; font-weight: bold; }
                         td { padding: 6px; border-bottom: 1px solid #ddd; }
                         tr:nth-child(even) { background: #f9f9f9; }
                         .benefit-row { background: #f0fdf4; }
+                        .real-badge { background: #d4edda; padding: 2px 6px; border-radius: 3px; font-size: 9px; }
+                        .proyecto-badge { background: #fff3cd; padding: 2px 6px; border-radius: 3px; font-size: 9px; }
                         .permanent-badge { color: #27ae60; font-weight: bold; }
                         .footer { margin-top: 20px; font-size: 10px; color: #666; text-align: center; }
                         .no-data { color: #999; font-style: italic; }
@@ -1225,17 +1234,21 @@
                     <div class="month-label">Mes de ${monthName}</div>
                     
                     <div class="intro">
-                        <p>El presente reporte contiene el análisis detallado de descuentos y beneficios obtenidos en el departamento de compras durante el mes de ${monthName}. Se incluyen tanto los descuentos cuantificables (que generan ahorro directo) como los beneficios no cuantificables (mejoras en plazo, nuevos proveedores, etc.).</p>
+                        <p>El presente reporte contiene el análisis detallado de descuentos y beneficios obtenidos en el departamento de compras durante el mes de ${monthName}. Se incluyen descuentos reales (confirmados), descuentos de proyecto (pendientes), y beneficios no cuantificables.</p>
                     </div>
 
                     <div class="stats">
-                        <div class="stat">
-                            <div class="stat-label">AHORRO DE DESCUENTOS</div>
-                            <div class="stat-value">$${formatNumber(totalDiscountAhorro)}</div>
+                        <div class="stat real">
+                            <div class="stat-label">AHORRO REAL</div>
+                            <div class="stat-value">$${formatNumber(realAhorro)}</div>
                         </div>
-                        <div class="stat">
-                            <div class="stat-label">AHORRO DE BENEFICIOS</div>
-                            <div class="stat-value">$${formatNumber(totalBenefitAhorro)}</div>
+                        <div class="stat proyecto">
+                            <div class="stat-label">AHORRO PROYECTO</div>
+                            <div class="stat-value">$${formatNumber(proyectoAhorro)}</div>
+                        </div>
+                        <div class="stat benefit">
+                            <div class="stat-label">BENEFICIOS</div>
+                            <div class="stat-value">$${formatNumber(benefitAhorro)}</div>
                         </div>
                         <div class="stat">
                             <div class="stat-label">AHORRO TOTAL</div>
@@ -1243,10 +1256,10 @@
                         </div>
                     </div>
 
-                    <h2>Descuentos Registrados</h2>
+                    <h2>Descuentos Reales</h2>
             `;
 
-            if (discounts.length > 0) {
+            if (discountsReal.length > 0) {
                 html += `
                     <table>
                         <thead>
@@ -1263,7 +1276,7 @@
                         <tbody>
                 `;
 
-                discounts.forEach(d => {
+                discountsReal.forEach(d => {
                     const beneficio = (d.beneficio || (d.precio_original - d.precio_final) * d.cantidad);
                     const fecha = new Date(d.fecha + 'T00:00:00').toLocaleDateString('es-AR');
                     html += `
@@ -1284,7 +1297,50 @@
                     </table>
                 `;
             } else {
-                html += `<p class="no-data">No hay descuentos registrados este mes.</p>`;
+                html += `<p class="no-data">No hay descuentos reales registrados este mes.</p>`;
+            }
+
+            html += `<h2>Descuentos de Proyecto</h2>`;
+
+            if (discountsProyecto.length > 0) {
+                html += `
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Proveedor</th>
+                                <th>Artículo</th>
+                                <th>Cantidad</th>
+                                <th>Precio Original</th>
+                                <th>Precio Final</th>
+                                <th>Ahorro Potencial</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                discountsProyecto.forEach(d => {
+                    const beneficio = (d.beneficio || (d.precio_original - d.precio_final) * d.cantidad);
+                    const fecha = new Date(d.fecha + 'T00:00:00').toLocaleDateString('es-AR');
+                    html += `
+                        <tr>
+                            <td>${fecha}</td>
+                            <td>${d.proveedor}</td>
+                            <td>${d.articulo}</td>
+                            <td>${d.cantidad}</td>
+                            <td>$${formatNumber(d.precio_original)}</td>
+                            <td>$${formatNumber(d.precio_final)}</td>
+                            <td><strong>$${formatNumber(beneficio)}</strong></td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                html += `<p class="no-data">No hay descuentos de proyecto registrados este mes.</p>`;
             }
 
             html += `<h2>Beneficios No Cuantificables</h2>`;

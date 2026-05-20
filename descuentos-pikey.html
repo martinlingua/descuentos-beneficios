@@ -120,7 +120,7 @@
 
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 15px;
             margin-bottom: 25px;
         }
@@ -134,7 +134,7 @@
         }
 
         .stat-card h3 {
-            font-size: 12px;
+            font-size: 11px;
             color: #7f8c8d;
             text-transform: uppercase;
             font-weight: 600;
@@ -142,25 +142,33 @@
         }
 
         .stat-card .value {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             color: #2c3e50;
         }
 
-        .stat-card.discount {
-            border-left-color: #3498db;
-        }
-
-        .stat-card.discount .value {
-            color: #3498db;
-        }
-
-        .stat-card.benefit {
+        .stat-card.real {
             border-left-color: #27ae60;
         }
 
-        .stat-card.benefit .value {
+        .stat-card.real .value {
             color: #27ae60;
+        }
+
+        .stat-card.proyecto {
+            border-left-color: #f39c12;
+        }
+
+        .stat-card.proyecto .value {
+            color: #f39c12;
+        }
+
+        .stat-card.benefit {
+            border-left-color: #3498db;
+        }
+
+        .stat-card.benefit .value {
+            color: #3498db;
         }
 
         .button-group {
@@ -457,12 +465,16 @@
 
             <!-- ESTADÍSTICAS -->
             <div class="stats">
-                <div class="stat-card discount">
-                    <h3>Ahorro de Descuentos</h3>
-                    <div class="value" id="discountAhorro">$0</div>
+                <div class="stat-card real">
+                    <h3>Ahorro Real</h3>
+                    <div class="value" id="realAhorro">$0</div>
+                </div>
+                <div class="stat-card proyecto">
+                    <h3>Ahorro Proyecto</h3>
+                    <div class="value" id="proyectoAhorro">$0</div>
                 </div>
                 <div class="stat-card benefit">
-                    <h3>Ahorro de Beneficios</h3>
+                    <h3>Beneficios</h3>
                     <div class="value" id="benefitAhorro">$0</div>
                 </div>
                 <div class="stat-card">
@@ -491,6 +503,14 @@
                     <div class="form-group">
                         <label>Fecha *</label>
                         <input type="date" id="fecha">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Descuento *</label>
+                        <select id="discountType" style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px;">
+                            <option value="">-- Selecciona --</option>
+                            <option value="real">💰 Real (Confirmado)</option>
+                            <option value="proyecto">📋 Proyecto (Pendiente)</option>
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Proveedor *</label>
@@ -589,6 +609,14 @@
                 <div class="form-group">
                     <label>Fecha *</label>
                     <input type="date" id="editFecha">
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Descuento *</label>
+                    <select id="editDiscountType" style="padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px;">
+                        <option value="">-- Selecciona --</option>
+                        <option value="real">💰 Real (Confirmado)</option>
+                        <option value="proyecto">📋 Proyecto (Pendiente)</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Proveedor *</label>
@@ -811,6 +839,7 @@
 
         async function addRecord() {
             const fecha = document.getElementById('fecha').value;
+            const discountType = document.getElementById('discountType').value;
             const proveedor = document.getElementById('proveedor').value;
             const articulo = document.getElementById('articulo').value;
             const cantidad = parseInt(document.getElementById('cantidad').value) || 1;
@@ -818,8 +847,8 @@
             const precioFinal = parseFloat(document.getElementById('precioFinal').value);
             const observaciones = document.getElementById('observaciones').value;
 
-            if (!fecha || !proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
-                alert('Completa campos obligatorios');
+            if (!fecha || !discountType || !proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
+                alert('Completa campos obligatorios (tipo de descuento es requerido)');
                 return;
             }
 
@@ -828,6 +857,7 @@
             const { error } = await supabase.from('descuentos').insert([{
                 fecha,
                 tipo: 'descuento',
+                discount_type: discountType,
                 proveedor,
                 articulo,
                 cantidad,
@@ -844,6 +874,7 @@
             }
 
             document.getElementById('fecha').value = '';
+            document.getElementById('discountType').value = '';
             document.getElementById('proveedor').value = '';
             document.getElementById('articulo').value = '';
             document.getElementById('cantidad').value = '';
@@ -962,6 +993,7 @@
 
             currentEditId = id;
             document.getElementById('editFecha').value = record.fecha;
+            document.getElementById('editDiscountType').value = record.discount_type || 'real';
             document.getElementById('editProveedor').value = record.proveedor;
             document.getElementById('editArticulo').value = record.articulo;
             document.getElementById('editCantidad').value = record.cantidad;
@@ -1000,6 +1032,7 @@
             if (!currentEditId) return;
 
             const fecha = document.getElementById('editFecha').value;
+            const discountType = document.getElementById('editDiscountType').value;
             const proveedor = document.getElementById('editProveedor').value;
             const articulo = document.getElementById('editArticulo').value;
             const cantidad = parseInt(document.getElementById('editCantidad').value);
@@ -1007,8 +1040,8 @@
             const precioFinal = parseFloat(document.getElementById('editPrecioFinal').value);
             const observaciones = document.getElementById('editObservaciones').value;
 
-            if (!fecha || !proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
-                alert('Completa campos obligatorios');
+            if (!fecha || !discountType || !proveedor || !articulo || !cantidad || !precioOriginal || !precioFinal) {
+                alert('Completa campos obligatorios (tipo de descuento es requerido)');
                 return;
             }
 
@@ -1018,6 +1051,7 @@
                 .from('descuentos')
                 .update({
                     fecha,
+                    discount_type: discountType,
                     proveedor,
                     articulo,
                     cantidad,
@@ -1131,14 +1165,17 @@
         }
 
         function updateStats() {
-            const discounts = records.filter(r => r.tipo === 'descuento');
+            const discountsReal = records.filter(r => r.tipo === 'descuento' && r.discount_type === 'real');
+            const discountsProyecto = records.filter(r => r.tipo === 'descuento' && r.discount_type === 'proyecto');
             const benefits = records.filter(r => r.tipo === 'beneficio');
             
-            const discountAhorro = discounts.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const realAhorro = discountsReal.reduce((sum, r) => sum + (r.beneficio || 0), 0);
+            const proyectoAhorro = discountsProyecto.reduce((sum, r) => sum + (r.beneficio || 0), 0);
             const benefitAhorro = benefits.reduce((sum, r) => sum + (r.benefit_total || 0), 0);
-            const totalAhorro = discountAhorro + benefitAhorro;
+            const totalAhorro = realAhorro + proyectoAhorro + benefitAhorro;
 
-            document.getElementById('discountAhorro').textContent = '$' + formatNumber(discountAhorro);
+            document.getElementById('realAhorro').textContent = '$' + formatNumber(realAhorro);
+            document.getElementById('proyectoAhorro').textContent = '$' + formatNumber(proyectoAhorro);
             document.getElementById('benefitAhorro').textContent = '$' + formatNumber(benefitAhorro);
             document.getElementById('totalAhorro').textContent = '$' + formatNumber(totalAhorro);
         }

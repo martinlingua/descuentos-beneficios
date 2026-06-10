@@ -572,6 +572,13 @@
                 </div>
             </div>
 
+            <!-- SELECTOR DE MES PARA KPIs -->
+            <div class="month-selector" style="margin-bottom: 25px;">
+                <label>Ver Stock de Mes:</label>
+                <input type="month" id="stockViewMes" onchange="loadStockForMonth()">
+            </div>
+
+            <!-- KPI CARDS -->
             <div class="kpi-grid">
                 <div class="kpi-card herrajes">
                     <div class="kpi-label">Stock Herrajes (Pesos)</div>
@@ -591,39 +598,26 @@
                 </div>
             </div>
 
-            <div class="chart-container" style="margin-bottom: 30px;">
+            <!-- GRÁFICOS COMPARATIVOS (AÑO PASADO VS ESTE AÑO) -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Comparativa Herrajes: Año Pasado vs Este Año</div>
+                    <div class="chart-canvas">
+                        <canvas id="herrajesCompChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Comparativa Insumos: Año Pasado vs Este Año</div>
+                    <div class="chart-canvas">
+                        <canvas id="insumosCompChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA DE HISTÓRICO -->
+            <div class="chart-container" style="margin-bottom: 30px; margin-top: 30px;">
                 <div class="chart-title">Historial de Stock Cargado</div>
                 <div id="stockTable"></div>
-            </div>
-
-            <div class="charts-grid">
-                <div class="chart-container">
-                    <div class="chart-title">Stock Herrajes - Evolución 12 Meses (Pesos)</div>
-                    <div class="chart-canvas">
-                        <canvas id="herrajesChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-title">Stock Insumos - Evolución 12 Meses (Pesos)</div>
-                    <div class="chart-canvas">
-                        <canvas id="insumosChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-grid">
-                <div class="chart-container">
-                    <div class="chart-title">Stock Herrajes - Evolución 12 Meses (USD)</div>
-                    <div class="chart-canvas">
-                        <canvas id="herrajesUSDChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-title">Stock Insumos - Evolución 12 Meses (USD)</div>
-                    <div class="chart-canvas">
-                        <canvas id="insumosUSDChart"></canvas>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -963,31 +957,46 @@
             // Mostrar tabla de stocks
             loadStockTable(data);
 
-            const last12Months = [];
+            // Establecer mes actual por defecto
             const today = new Date();
-            for (let i = 11; i >= 0; i--) {
-                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                last12Months.push(`${d.getFullYear()}-${m}`);
+            const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            if (!document.getElementById('stockViewMes').value) {
+                document.getElementById('stockViewMes').value = currentMonth;
             }
 
-            // Calcular totales mes actual
-            const currentMonth = document.getElementById('stockMes').value || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            const currentMonthData = (data || []).filter(d => d.mes === currentMonth);
+            // Cargar datos para el mes seleccionado
+            loadStockForMonth();
+
+            // Cargar gráficos comparativos
+            loadComparisonCharts(data);
+        }
+
+        function loadStockForMonth() {
+            const selectedMonth = document.getElementById('stockViewMes').value;
             
-            const herrajesTotal = currentMonthData.filter(d => d.tipo === 'herrajes').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-            const insumosTotal = currentMonthData.filter(d => d.tipo === 'insumos').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+            const { data: allData } = supabase.from('stock').select('*').order('mes');
+            
+            supabase.from('stock').select('*').eq('mes', selectedMonth).then(({ data: monthData }) => {
+                if (!monthData || monthData.length === 0) {
+                    document.getElementById('herrajesTotal').textContent = '$0';
+                    document.getElementById('insumosTotal').textContent = '$0';
+                    document.getElementById('stockTotalPesos').textContent = '$0';
+                    document.getElementById('stockTotalUSD').textContent = 'USD $0';
+                    return;
+                }
 
-            document.getElementById('herrajesTotal').textContent = '$' + formatNumber(herrajesTotal);
-            document.getElementById('insumosTotal').textContent = '$' + formatNumber(insumosTotal);
-            document.getElementById('stockTotalPesos').textContent = '$' + formatNumber(herrajesTotal + insumosTotal);
+                const herrajesTotal = monthData.filter(d => d.tipo === 'herrajes').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                const insumosTotal = monthData.filter(d => d.tipo === 'insumos').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
 
-            // Calcular promedio dólar mes
-            const avgDolar = currentMonthData.length > 0 ? currentMonthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / currentMonthData.length : 1;
-            const totalUSD = (herrajesTotal + insumosTotal) / avgDolar;
-            document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
+                document.getElementById('herrajesTotal').textContent = '$' + formatNumber(herrajesTotal);
+                document.getElementById('insumosTotal').textContent = '$' + formatNumber(insumosTotal);
+                document.getElementById('stockTotalPesos').textContent = '$' + formatNumber(herrajesTotal + insumosTotal);
 
-            loadStockCharts(data || [], last12Months);
+                // Calcular promedio dólar mes
+                const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                const totalUSD = (herrajesTotal + insumosTotal) / avgDolar;
+                document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
+            });
         }
 
         function loadStockTable(data) {
@@ -1025,148 +1034,134 @@
             }
         }
 
-        function loadStockCharts(data, last12Months) {
+        function loadComparisonCharts(data) {
             if (!data || data.length === 0) {
                 console.log('Sin datos para gráficos');
                 return;
             }
 
             try {
-                const herrajesData = last12Months.map(mes => {
-                    const monthData = (data || []).filter(d => d && d.mes === mes && d.tipo === 'herrajes');
+                // Obtener todos los meses disponibles
+                const meses = [...new Set(data.map(d => d.mes))].sort().reverse();
+                
+                if (meses.length === 0) return;
+
+                // Últimas 12 comparaciones (este mes vs año pasado)
+                const comparaciones = [];
+                for (let i = 0; i < Math.min(12, meses.length); i++) {
+                    const mesActual = meses[i];
+                    const [año, mes] = mesActual.split('-');
+                    const mesAnterior = `${parseInt(año) - 1}-${mes}`;
+                    
+                    comparaciones.push({
+                        label: `${mes}/${año.slice(2)}`,
+                        mesActual,
+                        mesAnterior,
+                        mesAnteriorExiste: meses.includes(mesAnterior)
+                    });
+                }
+
+                // Calcular datos para Herrajes
+                const herrajesActual = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
-                const insumosData = last12Months.map(mes => {
-                    const monthData = (data || []).filter(d => d && d.mes === mes && d.tipo === 'insumos');
+                const herrajesPasado = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'herrajes');
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
-                const herrajesUSDData = last12Months.map(mes => {
-                    const monthData = (data || []).filter(d => d && d.mes === mes && d.tipo === 'herrajes');
-                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
-                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                // Calcular datos para Insumos
+                const insumosActual = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
+                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
-                const insumosUSDData = last12Months.map(mes => {
-                    const monthData = (data || []).filter(d => d && d.mes === mes && d.tipo === 'insumos');
-                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
-                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                const insumosPasado = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'insumos');
+                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
-                const labels = last12Months.map(getMonthName);
+                const labels = comparaciones.map(c => c.label);
 
-                // Gráfico Herrajes Pesos
-                const herrajesElement = document.getElementById('herrajesChart');
-                if (herrajesElement) {
-                    if (charts.herrajesChart) charts.herrajesChart.destroy();
-                    charts.herrajesChart = new Chart(herrajesElement.getContext('2d'), {
-                        type: 'line',
+                // Gráfico Herrajes Comparativo
+                const herrajesCompElement = document.getElementById('herrajesCompChart');
+                if (herrajesCompElement) {
+                    if (charts.herrajesCompChart) charts.herrajesCompChart.destroy();
+                    charts.herrajesCompChart = new Chart(herrajesCompElement.getContext('2d'), {
+                        type: 'bar',
                         data: {
                             labels,
-                            datasets: [{
-                                label: 'Stock Herrajes',
-                                data: herrajesData,
-                                borderColor: '#e74c3c',
-                                backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.4
-                            }]
+                            datasets: [
+                                {
+                                    label: 'Este Año',
+                                    data: herrajesActual,
+                                    backgroundColor: '#e74c3c',
+                                    borderColor: '#c0392b',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Año Pasado',
+                                    data: herrajesPasado,
+                                    backgroundColor: '#ecf0f1',
+                                    borderColor: '#bdc3c7',
+                                    borderWidth: 1
+                                }
+                            ]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true } }
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
                         }
                     });
                 }
 
-                // Gráfico Insumos Pesos
-                const insumosElement = document.getElementById('insumosChart');
-                if (insumosElement) {
-                    if (charts.insumosChart) charts.insumosChart.destroy();
-                    charts.insumosChart = new Chart(insumosElement.getContext('2d'), {
-                        type: 'line',
+                // Gráfico Insumos Comparativo
+                const insumosCompElement = document.getElementById('insumosCompChart');
+                if (insumosCompElement) {
+                    if (charts.insumosCompChart) charts.insumosCompChart.destroy();
+                    charts.insumosCompChart = new Chart(insumosCompElement.getContext('2d'), {
+                        type: 'bar',
                         data: {
                             labels,
-                            datasets: [{
-                                label: 'Stock Insumos',
-                                data: insumosData,
-                                borderColor: '#3498db',
-                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.4
-                            }]
+                            datasets: [
+                                {
+                                    label: 'Este Año',
+                                    data: insumosActual,
+                                    backgroundColor: '#3498db',
+                                    borderColor: '#2980b9',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Año Pasado',
+                                    data: insumosPasado,
+                                    backgroundColor: '#ecf0f1',
+                                    borderColor: '#bdc3c7',
+                                    borderWidth: 1
+                                }
+                            ]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true } }
-                        }
-                    });
-                }
-
-                // Gráfico Herrajes USD
-                const herrajesUSDElement = document.getElementById('herrajesUSDChart');
-                if (herrajesUSDElement) {
-                    if (charts.herrajesUSDChart) charts.herrajesUSDChart.destroy();
-                    charts.herrajesUSDChart = new Chart(herrajesUSDElement.getContext('2d'), {
-                        type: 'line',
-                        data: {
-                            labels,
-                            datasets: [{
-                                label: 'Stock Herrajes (USD)',
-                                data: herrajesUSDData,
-                                borderColor: '#e74c3c',
-                                backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true } }
-                        }
-                    });
-                }
-
-                // Gráfico Insumos USD
-                const insumosUSDElement = document.getElementById('insumosUSDChart');
-                if (insumosUSDElement) {
-                    if (charts.insumosUSDChart) charts.insumosUSDChart.destroy();
-                    charts.insumosUSDChart = new Chart(insumosUSDElement.getContext('2d'), {
-                        type: 'line',
-                        data: {
-                            labels,
-                            datasets: [{
-                                label: 'Stock Insumos (USD)',
-                                data: insumosUSDData,
-                                borderColor: '#3498db',
-                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                                borderWidth: 2,
-                                fill: true,
-                                tension: 0.4
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { display: false } },
-                            scales: { y: { beginAtZero: true } }
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
                         }
                     });
                 }
             } catch (e) {
-                console.error('Error creando gráficos:', e);
+                console.error('Error creando gráficos comparativos:', e);
             }
         }
 

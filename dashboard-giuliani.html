@@ -408,7 +408,7 @@
     <div id="dashboard" class="container" style="display: none;">
         <header>
             <h1>📊 Dashboard Compras & Operaciones</h1>
-            <p>Giuliani S.A. - Análisis en Tiempo Real</p>
+            <p>Giuliani S.A. - Análisis en tiempo real</p>
         </header>
 
         <!-- PESTAÑAS -->
@@ -668,6 +668,9 @@
         // ============ CONFIGURACIÓN SUPABASE ============
         const SUPABASE_URL = "https://hhjcfuawfyxbdkktkkmn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_BjcUhvUle3Q-0jopsh8lvQ_O9GjjVFS";
+        
+        // ============ INICIALIZAR OBJETO GRÁFICOS ============
+        const charts = {};
         const PASSWORD = "comprasG2026";
 
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);

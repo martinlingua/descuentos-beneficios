@@ -1145,11 +1145,11 @@
         }
 
         async function loadStock() {
-            const { data } = await supabase.from('stock').select('*').order('mes', { ascending: false });
+            const { data: stockDataRaw } = await supabase.from('stock').select('*').order('mes', { ascending: false });
             
-            if (!data) {
+            let data = stockDataRaw || [];
+            if (data.length === 0) {
                 console.log('No hay datos de stock');
-                data = [];
             }
 
             // Mostrar tabla de stocks
@@ -1169,32 +1169,30 @@
             loadComparisonCharts(data);
         }
 
-        function loadStockForMonth() {
+        async function loadStockForMonth() {
             const selectedMonth = document.getElementById('stockViewMes').value;
             
-            const { data: allData } = supabase.from('stock').select('*').order('mes');
-            
-            supabase.from('stock').select('*').eq('mes', selectedMonth).then(({ data: monthData }) => {
-                if (!monthData || monthData.length === 0) {
-                    document.getElementById('herrajesTotal').textContent = '$0';
-                    document.getElementById('insumosTotal').textContent = '$0';
-                    document.getElementById('stockTotalPesos').textContent = '$0';
-                    document.getElementById('stockTotalUSD').textContent = 'USD $0';
-                    return;
-                }
+            const { data: monthData } = await supabase.from('stock').select('*').eq('mes', selectedMonth);
 
-                const herrajesTotal = monthData.filter(d => d.tipo === 'herrajes').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                const insumosTotal = monthData.filter(d => d.tipo === 'insumos').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+            if (!monthData || monthData.length === 0) {
+                document.getElementById('herrajesTotal').textContent = '$0';
+                document.getElementById('insumosTotal').textContent = '$0';
+                document.getElementById('stockTotalPesos').textContent = '$0';
+                document.getElementById('stockTotalUSD').textContent = 'USD $0';
+                return;
+            }
 
-                document.getElementById('herrajesTotal').textContent = '$' + formatNumber(herrajesTotal);
-                document.getElementById('insumosTotal').textContent = '$' + formatNumber(insumosTotal);
-                document.getElementById('stockTotalPesos').textContent = '$' + formatNumber(herrajesTotal + insumosTotal);
+            const herrajesTotal = monthData.filter(d => d.tipo === 'herrajes').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+            const insumosTotal = monthData.filter(d => d.tipo === 'insumos').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
 
-                // Calcular promedio dólar mes
-                const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
-                const totalUSD = (herrajesTotal + insumosTotal) / avgDolar;
-                document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
-            });
+            document.getElementById('herrajesTotal').textContent = '$' + formatNumber(herrajesTotal);
+            document.getElementById('insumosTotal').textContent = '$' + formatNumber(insumosTotal);
+            document.getElementById('stockTotalPesos').textContent = '$' + formatNumber(herrajesTotal + insumosTotal);
+
+            // Calcular promedio dólar mes
+            const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+            const totalUSD = (herrajesTotal + insumosTotal) / avgDolar;
+            document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
         }
 
         function loadStockTable(data) {

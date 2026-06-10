@@ -425,6 +425,52 @@
                 <input type="month" id="monthSelector" onchange="loadCostos()">
             </div>
 
+            <!-- FORMULARIO NUEVO DESCUENTO -->
+            <div class="form-section">
+                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Agregar Descuento</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Fecha *</label>
+                        <input type="date" id="costFecha">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo *</label>
+                        <select id="costTipo" style="padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px;">
+                            <option value="">-- Selecciona --</option>
+                            <option value="real">💰 Real (Confirmado)</option>
+                            <option value="proyecto">📋 Proyecto (Pendiente)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Proveedor *</label>
+                        <input type="text" id="costProveedor" placeholder="Ej: Arauco">
+                    </div>
+                    <div class="form-group">
+                        <label>Artículo *</label>
+                        <input type="text" id="costArticulo" placeholder="Ej: Madera">
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad *</label>
+                        <input type="number" id="costCantidad" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Original ($) *</label>
+                        <input type="number" id="costPrecioOrig" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Final ($) *</label>
+                        <input type="number" id="costPrecioFinal" step="0.01">
+                    </div>
+                    <div class="form-group full">
+                        <label>Observaciones</label>
+                        <input type="text" id="costObservaciones" placeholder="Notas...">
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="addDescuento()">Guardar Descuento</button>
+                </div>
+            </div>
+
             <div class="kpi-grid">
                 <div class="kpi-card real">
                     <div class="kpi-label">Ahorro Real</div>
@@ -686,6 +732,54 @@
         }
 
         // ============ SECCIÓN COSTOS ============
+        async function addDescuento() {
+            const fecha = document.getElementById('costFecha').value;
+            const tipo = document.getElementById('costTipo').value;
+            const proveedor = document.getElementById('costProveedor').value;
+            const articulo = document.getElementById('costArticulo').value;
+            const cantidad = parseInt(document.getElementById('costCantidad').value);
+            const precioOrig = parseFloat(document.getElementById('costPrecioOrig').value);
+            const precioFinal = parseFloat(document.getElementById('costPrecioFinal').value);
+            const observaciones = document.getElementById('costObservaciones').value;
+
+            if (!fecha || !tipo || !proveedor || !articulo || !cantidad || !precioOrig || !precioFinal) {
+                alert('Completa campos obligatorios');
+                return;
+            }
+
+            const beneficio = (precioOrig - precioFinal) * cantidad;
+
+            const { error } = await supabase.from('descuentos').insert([{
+                fecha,
+                tipo: 'descuento',
+                discount_type: tipo,
+                proveedor,
+                articulo,
+                cantidad,
+                precio_original: precioOrig,
+                precio_final: precioFinal,
+                beneficio,
+                observaciones,
+                completed: false
+            }]);
+
+            if (error) {
+                alert('Error: ' + error.message);
+                return;
+            }
+
+            alert('Descuento guardado');
+            document.getElementById('costFecha').value = '';
+            document.getElementById('costTipo').value = '';
+            document.getElementById('costProveedor').value = '';
+            document.getElementById('costArticulo').value = '';
+            document.getElementById('costCantidad').value = '';
+            document.getElementById('costPrecioOrig').value = '';
+            document.getElementById('costPrecioFinal').value = '';
+            document.getElementById('costObservaciones').value = '';
+            loadCostos();
+        }
+
         async function loadCostos() {
             const month = document.getElementById('monthSelector').value;
             const { data: descuentos } = await supabase
@@ -817,15 +911,77 @@
             }
         }
 
+        async function editScorecard(id) {
+            const { data } = await supabase.from('proveedor_scorecard').select('*').eq('id', id);
+            if (!data || data.length === 0) return;
+
+            const s = data[0];
+            document.getElementById('cumplimiento').value = s.cumplimiento_entrega;
+            document.getElementById('calidad').value = s.calidad;
+            document.getElementById('precio').value = s.precio_competitivo;
+            document.getElementById('cercania').value = s.cercania;
+            document.getElementById('notasProveedor').value = s.notas || '';
+
+            // Cambiar botón a "Actualizar"
+            const btn = document.querySelector('button[onclick="addScorecard()"]');
+            btn.textContent = 'Actualizar Evaluación';
+            btn.onclick = () => updateScorecard(id);
+
+            window.scrollTo(0, document.querySelector('.form-section').offsetTop - 100);
+        }
+
+        async function updateScorecard(id) {
+            const cumplimiento = parseInt(document.getElementById('cumplimiento').value);
+            const calidad = parseInt(document.getElementById('calidad').value);
+            const precio = parseInt(document.getElementById('precio').value);
+            const cercania = parseInt(document.getElementById('cercania').value);
+            const promedio = (cumplimiento + calidad + precio + cercania) / 4;
+
+            const { error } = await supabase.from('proveedor_scorecard').update({
+                cumplimiento_entrega: cumplimiento,
+                calidad,
+                precio_competitivo: precio,
+                cercania,
+                promedio,
+                notas: document.getElementById('notasProveedor').value
+            }).eq('id', id);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('Evaluación actualizada');
+                loadScorecardTable();
+            }
+        }
+
+        async function deleteScorecard(id) {
+            if (!confirm('¿Eliminar esta evaluación?')) return;
+
+            const { error } = await supabase.from('proveedor_scorecard').delete().eq('id', id);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('Evaluación eliminada');
+                loadScorecardTable();
+            }
+        }
+
         async function loadScorecardTable() {
             const mes = document.getElementById('scorecardMonth').value;
-            const { data: scores } = await supabase.from('proveedor_scorecard').select('*,proveedor_id(*)', { count: 'est' }).eq('mes', mes);
+            const { data: scores } = await supabase
+                .from('proveedor_scorecard')
+                .select('*')
+                .eq('mes', mes);
             
-            let html = '<table><thead><tr><th>Proveedor</th><th>Cumplimiento</th><th>Calidad</th><th>Precio</th><th>Cercanía</th><th>Promedio</th></tr></thead><tbody>';
+            let html = '<table><thead><tr><th>Proveedor</th><th>Cumplimiento</th><th>Calidad</th><th>Precio</th><th>Cercanía</th><th>Promedio</th><th>Acciones</th></tr></thead><tbody>';
             
             if (scores?.length > 0) {
+                // Obtener datos de proveedores
+                const { data: provs } = await supabase.from('proveedores').select('*');
+                const provMap = {};
+                provs?.forEach(p => { provMap[p.id] = p.nombre; });
+
                 scores.sort((a, b) => b.promedio - a.promedio).forEach(s => {
-                    const pName = s.proveedor_id?.[0]?.nombre || 'N/A';
+                    const pName = provMap[s.proveedor_id] || 'N/A';
                     const badge = s.promedio >= 8 ? 'score-excellent' : s.promedio >= 7 ? 'score-good' : s.promedio >= 6 ? 'score-warning' : 'score-danger';
                     html += `<tr>
                         <td>${pName}</td>
@@ -834,10 +990,14 @@
                         <td><span class="score-badge score-good">${s.precio_competitivo}/10</span></td>
                         <td><span class="score-badge score-good">${s.cercania}/10</span></td>
                         <td><span class="score-badge ${badge}">${s.promedio.toFixed(1)}/10</span></td>
+                        <td>
+                            <button class="btn-secondary" onclick="editScorecard('${s.id}')" style="padding: 6px 12px; font-size: 12px;">Editar</button>
+                            <button class="btn-secondary" onclick="deleteScorecard('${s.id}')" style="padding: 6px 12px; font-size: 12px; margin-left: 5px;">Eliminar</button>
+                        </td>
                     </tr>`;
                 });
             } else {
-                html += '<tr><td colspan="6" class="no-data">Sin evaluaciones para este mes</td></tr>';
+                html += '<tr><td colspan="7" class="no-data">Sin evaluaciones para este mes</td></tr>';
             }
             html += '</tbody></table>';
             document.getElementById('proveedoresTable').innerHTML = html;
@@ -876,6 +1036,11 @@
         async function loadStock() {
             const { data } = await supabase.from('stock').select('*').order('mes');
             
+            if (!data) {
+                console.log('No hay datos de stock');
+                data = [];
+            }
+
             const last12Months = [];
             const today = new Date();
             for (let i = 11; i >= 0; i--) {
@@ -886,138 +1051,166 @@
 
             // Calcular totales mes actual
             const currentMonth = document.getElementById('stockMes').value || `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            const currentMonthData = data.filter(d => d.mes === currentMonth);
+            const currentMonthData = (data || []).filter(d => d.mes === currentMonth);
             
-            const herrajesTotal = currentMonthData.filter(d => d.tipo === 'herrajes').reduce((s, d) => s + d.stock_valor_pesos, 0);
-            const insumosTotal = currentMonthData.filter(d => d.tipo === 'insumos').reduce((s, d) => s + d.stock_valor_pesos, 0);
+            const herrajesTotal = currentMonthData.filter(d => d.tipo === 'herrajes').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+            const insumosTotal = currentMonthData.filter(d => d.tipo === 'insumos').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
 
             document.getElementById('herrajesTotal').textContent = '$' + formatNumber(herrajesTotal);
             document.getElementById('insumosTotal').textContent = '$' + formatNumber(insumosTotal);
             document.getElementById('stockTotalPesos').textContent = '$' + formatNumber(herrajesTotal + insumosTotal);
 
             // Calcular promedio dólar mes
-            const avgDolar = currentMonthData.length > 0 ? currentMonthData.reduce((s, d) => s + d.valor_dolar, 0) / currentMonthData.length : 1;
+            const avgDolar = currentMonthData.length > 0 ? currentMonthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / currentMonthData.length : 1;
             const totalUSD = (herrajesTotal + insumosTotal) / avgDolar;
             document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
 
-            loadStockCharts(data, last12Months);
+            loadStockCharts(data || [], last12Months);
         }
 
         function loadStockCharts(data, last12Months) {
-            const herrajesData = last12Months.map(mes => data.filter(d => d.mes === mes && d.tipo === 'herrajes').reduce((s, d) => s + d.stock_valor_pesos, 0));
-            const insumosData = last12Months.map(mes => data.filter(d => d.mes === mes && d.tipo === 'insumos').reduce((s, d) => s + d.stock_valor_pesos, 0));
+            if (!data || data.length === 0) {
+                console.log('Sin datos para gráficos');
+                return;
+            }
 
-            const herrajesUSDData = last12Months.map(mes => {
-                const monthData = data.filter(d => d.mes === mes && d.tipo === 'herrajes');
-                const pesos = monthData.reduce((s, d) => s + d.stock_valor_pesos, 0);
-                const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + d.valor_dolar, 0) / monthData.length : 1;
-                return pesos / avgDolar;
-            });
+            try {
+                const herrajesData = last12Months.map(mes => {
+                    const monthData = (data || []).filter(d => d && d.mes === mes && d.tipo === 'herrajes');
+                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                });
 
-            const insumosUSDData = last12Months.map(mes => {
-                const monthData = data.filter(d => d.mes === mes && d.tipo === 'insumos');
-                const pesos = monthData.reduce((s, d) => s + d.stock_valor_pesos, 0);
-                const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + d.valor_dolar, 0) / monthData.length : 1;
-                return pesos / avgDolar;
-            });
+                const insumosData = last12Months.map(mes => {
+                    const monthData = (data || []).filter(d => d && d.mes === mes && d.tipo === 'insumos');
+                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                });
 
-            const labels = last12Months.map(getMonthName);
+                const herrajesUSDData = last12Months.map(mes => {
+                    const monthData = (data || []).filter(d => d && d.mes === mes && d.tipo === 'herrajes');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
 
-            // Gráfico Herrajes Pesos
-            if (charts.herrajesChart) charts.herrajesChart.destroy();
-            charts.herrajesChart = new Chart(document.getElementById('herrajesChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Stock Herrajes',
-                        data: herrajesData,
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
+                const insumosUSDData = last12Months.map(mes => {
+                    const monthData = (data || []).filter(d => d && d.mes === mes && d.tipo === 'insumos');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                const labels = last12Months.map(getMonthName);
+
+                // Gráfico Herrajes Pesos
+                const herrajesElement = document.getElementById('herrajesChart');
+                if (herrajesElement) {
+                    if (charts.herrajesChart) charts.herrajesChart.destroy();
+                    charts.herrajesChart = new Chart(herrajesElement.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [{
+                                label: 'Stock Herrajes',
+                                data: herrajesData,
+                                borderColor: '#e74c3c',
+                                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } }
+                        }
+                    });
                 }
-            });
 
-            // Gráfico Insumos Pesos
-            if (charts.insumosChart) charts.insumosChart.destroy();
-            charts.insumosChart = new Chart(document.getElementById('insumosChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Stock Insumos',
-                        data: insumosData,
-                        borderColor: '#3498db',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
+                // Gráfico Insumos Pesos
+                const insumosElement = document.getElementById('insumosChart');
+                if (insumosElement) {
+                    if (charts.insumosChart) charts.insumosChart.destroy();
+                    charts.insumosChart = new Chart(insumosElement.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [{
+                                label: 'Stock Insumos',
+                                data: insumosData,
+                                borderColor: '#3498db',
+                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } }
+                        }
+                    });
                 }
-            });
 
-            // Gráfico Herrajes USD
-            if (charts.herrajesUSDChart) charts.herrajesUSDChart.destroy();
-            charts.herrajesUSDChart = new Chart(document.getElementById('herrajesUSDChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Stock Herrajes (USD)',
-                        data: herrajesUSDData,
-                        borderColor: '#e74c3c',
-                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
+                // Gráfico Herrajes USD
+                const herrajesUSDElement = document.getElementById('herrajesUSDChart');
+                if (herrajesUSDElement) {
+                    if (charts.herrajesUSDChart) charts.herrajesUSDChart.destroy();
+                    charts.herrajesUSDChart = new Chart(herrajesUSDElement.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [{
+                                label: 'Stock Herrajes (USD)',
+                                data: herrajesUSDData,
+                                borderColor: '#e74c3c',
+                                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } }
+                        }
+                    });
                 }
-            });
 
-            // Gráfico Insumos USD
-            if (charts.insumosUSDChart) charts.insumosUSDChart.destroy();
-            charts.insumosUSDChart = new Chart(document.getElementById('insumosUSDChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Stock Insumos (USD)',
-                        data: insumosUSDData,
-                        borderColor: '#3498db',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true } }
+                // Gráfico Insumos USD
+                const insumosUSDElement = document.getElementById('insumosUSDChart');
+                if (insumosUSDElement) {
+                    if (charts.insumosUSDChart) charts.insumosUSDChart.destroy();
+                    charts.insumosUSDChart = new Chart(insumosUSDElement.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [{
+                                label: 'Stock Insumos (USD)',
+                                data: insumosUSDData,
+                                borderColor: '#3498db',
+                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: { y: { beginAtZero: true } }
+                        }
+                    });
                 }
-            });
+            } catch (e) {
+                console.error('Error creando gráficos:', e);
+            }
         }
 
         // Verificar login al cargar

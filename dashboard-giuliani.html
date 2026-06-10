@@ -431,28 +431,28 @@
 
             <!-- CONFIGURACIÓN DE META -->
             <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 12px;">
-                    <label style="font-weight: 600; color: #333;">Tipo de Meta:</label>
-                    <select id="metaType" onchange="updateMetaDisplay()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: 'DM Sans', sans-serif;">
-                        <option value="percentage">% del Stock Anterior</option>
-                        <option value="fixed">Valor Fijo ($)</option>
-                    </select>
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: 600; color: #333; margin-bottom: 8px; display: block;">Configurar Metas para este mes:</label>
                 </div>
 
-                <div id="metaPercentageContainer" style="display: flex; gap: 15px; align-items: center;">
-                    <label style="font-weight: 600; color: #333;">Meta (%):</label>
-                    <input type="number" id="metaPercentage" value="5" min="0" max="100" step="0.5" onchange="reloadMetaCharts()" style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <span style="color: #666; font-size: 13px;">%</span>
+                <div style="display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-weight: 600; color: #333;">Meta % Stock:</label>
+                        <input type="number" id="metaPercentage" value="5" min="0" max="100" step="0.5" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <span style="color: #666; font-size: 13px;">%</span>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-weight: 600; color: #333;">Meta Fija:</label>
+                        <input type="number" id="metaFixed" value="10000" min="0" step="100" style="width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <span style="color: #666; font-size: 13px;">$</span>
+                    </div>
+
+                    <button onclick="saveMeta()" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">💾 Guardar Meta</button>
                 </div>
 
-                <div id="metaFixedContainer" style="display: none; gap: 15px; align-items: center;">
-                    <label style="font-weight: 600; color: #333;">Meta ($):</label>
-                    <input type="number" id="metaFixed" value="10000" min="0" step="100" onchange="reloadMetaCharts()" style="width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                    <span style="color: #666; font-size: 13px;">Pesos</span>
-                </div>
-
-                <div style="margin-top: 12px;">
-                    <span id="metaValue" style="font-weight: 600; color: #3498db;">Meta: Cargando...</span>
+                <div id="metaStatus" style="font-size: 12px; color: #666;">
+                    <span id="metaValue">Meta guardada: Cargando...</span>
                 </div>
             </div>
 
@@ -747,12 +747,64 @@
             document.getElementById('benefitsTotal').textContent = '$' + formatNumber(benefits);
             document.getElementById('grandTotal').textContent = '$' + formatNumber(real + proyecto + benefits);
 
+            // Cargar metas guardadas para este mes
+            await loadMetasForMonth(month);
+
+            loadCostosCharts(month);
+        }
+
+        async function loadMetasForMonth(month) {
+            const { data } = await supabase
+                .from('metas')
+                .select('*')
+                .eq('mes', month);
+
+            if (data && data.length > 0) {
+                document.getElementById('metaPercentage').value = data[0].meta_porcentaje || 5;
+                document.getElementById('metaFixed').value = data[0].meta_fija || 10000;
+                document.getElementById('metaStatus').innerHTML = `<span style="color: #27ae60; font-weight: 600;">✓ Meta guardada para ${month}</span>`;
+            } else {
+                document.getElementById('metaStatus').innerHTML = `<span style="color: #e74c3c;">⚠ Sin meta guardada. Completa y haz clic en "Guardar Meta"</span>`;
+            }
+        }
+
+        async function saveMeta() {
+            const month = document.getElementById('monthSelector').value;
+            const metaPercentage = parseFloat(document.getElementById('metaPercentage').value) || 5;
+            const metaFixed = parseFloat(document.getElementById('metaFixed').value) || 10000;
+
+            if (!month) { alert('Selecciona un mes'); return; }
+
+            // Intentar actualizar si existe, si no crear
+            const { data: existing } = await supabase
+                .from('metas')
+                .select('*')
+                .eq('mes', month);
+
+            if (existing && existing.length > 0) {
+                // Actualizar
+                const { error } = await supabase
+                    .from('metas')
+                    .update({ meta_porcentaje: metaPercentage, meta_fija: metaFixed })
+                    .eq('mes', month);
+                if (error) { alert('Error: ' + error.message); return; }
+            } else {
+                // Crear
+                const { error } = await supabase
+                    .from('metas')
+                    .insert([{ mes: month, meta_porcentaje: metaPercentage, meta_fija: metaFixed }]);
+                if (error) { alert('Error: ' + error.message); return; }
+            }
+
+            alert('Meta guardada para ' + month);
+            await loadMetasForMonth(month);
             loadCostosCharts(month);
         }
 
         async function loadCostosCharts(currentMonth) {
             const { data: descuentosData } = await supabase.from('descuentos').select('*').order('fecha');
             const { data: stockData } = await supabase.from('stock').select('*').order('mes');
+            const { data: metasData } = await supabase.from('metas').select('*').order('mes');
             
             const last12Months = [];
             const today = new Date(currentMonth + '-01');
@@ -762,7 +814,12 @@
                 last12Months.push(`${d.getFullYear()}-${m}`);
             }
 
-            // Calcular datos: (REAL + BENEFICIOS) y PROYECTO separados
+            // Calcular datos: REAL, (REAL + BENEFICIOS) y PROYECTO
+            const realData = last12Months.map(month => {
+                const monthData = descuentosData.filter(d => d.fecha.startsWith(month));
+                return monthData.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0);
+            });
+
             const realBenefitsData = last12Months.map(month => {
                 const monthData = descuentosData.filter(d => d.fecha.startsWith(month));
                 const real = monthData.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0);
@@ -775,37 +832,24 @@
                 return monthData.reduce((s, d) => s + (d.beneficio || 0), 0);
             });
 
-            // Calcular META basada en tipo seleccionado
-            const metaType = document.getElementById('metaType').value;
-            let metaData = [];
-            let currentMetaValue = 0;
+            // Calcular META PORCENTAJE para cada mes (del stock anterior)
+            const metaPercentageData = last12Months.map((month, index) => {
+                if (index === 0) return 0;
+                
+                const metaMes = metasData ? metasData.find(m => m.mes === month) : null;
+                const metaPercent = metaMes ? (metaMes.meta_porcentaje || 5) : 5;
+                
+                const prevMonth = last12Months[index - 1];
+                const prevStockData = stockData.filter(d => d.mes === prevMonth);
+                const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                return prevStockTotal * (metaPercent / 100);
+            });
 
-            if (metaType === 'percentage') {
-                const metaPercentage = parseFloat(document.getElementById('metaPercentage').value) || 5;
-                metaData = last12Months.map((month, index) => {
-                    if (index === 0) return 0;
-                    const prevMonth = last12Months[index - 1];
-                    const prevStockData = stockData.filter(d => d.mes === prevMonth);
-                    const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    return prevStockTotal * (metaPercentage / 100);
-                });
-
-                // Mostrar meta actual
-                const currentMonthIndex = last12Months.indexOf(currentMonth);
-                if (currentMonthIndex > 0) {
-                    const prevMonth = last12Months[currentMonthIndex - 1];
-                    const prevStockData = stockData.filter(d => d.mes === prevMonth);
-                    const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    currentMetaValue = prevStockTotal * (metaPercentage / 100);
-                }
-            } else {
-                // Meta fija
-                const metaFixed = parseFloat(document.getElementById('metaFixed').value) || 10000;
-                metaData = last12Months.map(() => metaFixed);
-                currentMetaValue = metaFixed;
-            }
-
-            document.getElementById('metaValue').textContent = `Meta: $${formatNumber(currentMetaValue)}`;
+            // Calcular META FIJA para cada mes (de la tabla)
+            const metaFixedData = last12Months.map(month => {
+                const metaMes = metasData ? metasData.find(m => m.mes === month) : null;
+                return metaMes ? (metaMes.meta_fija || 10000) : 10000;
+            });
 
             const labels = last12Months.map(getMonthName);
 
@@ -845,7 +889,7 @@
                 }
             });
 
-            // Gráfico 2: (Real + Beneficios) vs Meta
+            // Gráfico 2: Real, Real+Beneficios vs Meta % y Meta Fija
             if (charts.typeChart) charts.typeChart.destroy();
             const ctx2 = document.getElementById('typeChart').getContext('2d');
             charts.typeChart = new Chart(ctx2, {
@@ -854,23 +898,42 @@
                     labels,
                     datasets: [
                         {
+                            label: 'Real',
+                            data: realData,
+                            borderColor: '#9b59b6',
+                            backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
                             label: 'Real + Beneficios',
                             data: realBenefitsData,
                             borderColor: '#e74c3c',
                             backgroundColor: 'rgba(231, 76, 60, 0.1)',
                             borderWidth: 3,
-                            fill: true,
+                            fill: false,
                             tension: 0.4
                         },
                         {
-                            label: 'Meta',
-                            data: metaData,
+                            label: 'Meta % (Stock)',
+                            data: metaPercentageData,
                             borderColor: '#f39c12',
-                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
-                            borderWidth: 3,
+                            borderWidth: 2,
                             fill: false,
                             borderDash: [5, 5],
-                            tension: 0.4
+                            tension: 0.4,
+                            pointRadius: 3
+                        },
+                        {
+                            label: 'Meta Fija ($)',
+                            data: metaFixedData,
+                            borderColor: '#16a085',
+                            borderWidth: 2,
+                            fill: false,
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            pointRadius: 3
                         }
                     ]
                 },
@@ -881,27 +944,6 @@
                     scales: { y: { beginAtZero: true } }
                 }
             });
-        }
-
-        function updateMetaDisplay() {
-            const metaType = document.getElementById('metaType').value;
-            const percentageContainer = document.getElementById('metaPercentageContainer');
-            const fixedContainer = document.getElementById('metaFixedContainer');
-
-            if (metaType === 'percentage') {
-                percentageContainer.style.display = 'flex';
-                fixedContainer.style.display = 'none';
-            } else {
-                percentageContainer.style.display = 'none';
-                fixedContainer.style.display = 'flex';
-            }
-
-            reloadMetaCharts();
-        }
-
-        function reloadMetaCharts() {
-            const currentMonth = document.getElementById('monthSelector').value;
-            loadCostosCharts(currentMonth);
         }
 
         // ============ SECCIÓN PROVEEDORES ============

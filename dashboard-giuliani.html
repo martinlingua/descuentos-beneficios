@@ -429,6 +429,14 @@
                 💡 Los descuentos se cargan en la app <strong>descuentos-pikey.html</strong> y se muestran aquí automáticamente.
             </p>
 
+            <!-- CONFIGURACIÓN DE META -->
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center;">
+                <label style="font-weight: 600; color: #333;">Meta Ahorro Real (% del stock anterior):</label>
+                <input type="number" id="metaPercentage" value="5" min="0" max="100" step="0.5" style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                <span style="color: #666; font-size: 13px;">%</span>
+                <span id="metaValue" style="font-weight: 600; color: #3498db; margin-left: 20px;">Meta: Cargando...</span>
+            </div>
+
             <div class="kpi-grid">
                 <div class="kpi-card real">
                     <div class="kpi-label">Ahorro Real</div>
@@ -450,13 +458,13 @@
 
             <div class="charts-grid">
                 <div class="chart-container">
-                    <div class="chart-title">Evolución Ahorro (12 meses)</div>
+                    <div class="chart-title">Evolución Ahorro - Real vs Proyecto (12 meses)</div>
                     <div class="chart-canvas">
                         <canvas id="costosChart"></canvas>
                     </div>
                 </div>
                 <div class="chart-container">
-                    <div class="chart-title">Comparativa Real vs Proyecto</div>
+                    <div class="chart-title">Ahorro Real vs Meta (12 meses)</div>
                     <div class="chart-canvas">
                         <canvas id="typeChart"></canvas>
                     </div>
@@ -669,6 +677,12 @@
             document.getElementById('scorecardMonth').value = `${year}-${month}`;
             document.getElementById('stockMes').value = `${year}-${month}`;
             
+            // Agregar evento para actualizar gráficos cuando cambia meta
+            document.getElementById('metaPercentage').addEventListener('change', () => {
+                const currentMonth = document.getElementById('monthSelector').value;
+                loadCostosCharts(currentMonth);
+            });
+            
             loadCostos();
             loadProveedores();
             loadStock();
@@ -720,7 +734,8 @@
         }
 
         async function loadCostosCharts(currentMonth) {
-            const { data } = await supabase.from('descuentos').select('*').order('fecha');
+            const { data: descuentosData } = await supabase.from('descuentos').select('*').order('fecha');
+            const { data: stockData } = await supabase.from('stock').select('*').order('mes');
             
             const last12Months = [];
             const today = new Date(currentMonth + '-01');
@@ -730,34 +745,109 @@
                 last12Months.push(`${d.getFullYear()}-${m}`);
             }
 
-            const chartData = last12Months.map(month => {
-                const monthData = data.filter(d => d.fecha.startsWith(month));
-                const real = monthData.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0);
-                const proyecto = monthData.filter(d => d.discount_type === 'proyecto').reduce((s, d) => s + (d.beneficio || 0), 0);
-                const benefits = monthData.filter(d => d.tipo === 'beneficio').reduce((s, d) => s + (d.benefit_total || 0), 0);
-                return real + proyecto + benefits;
+            // Calcular datos REALES y PROYECTO separados
+            const realData = last12Months.map(month => {
+                const monthData = descuentosData.filter(d => d.fecha.startsWith(month) && d.discount_type === 'real');
+                return monthData.reduce((s, d) => s + (d.beneficio || 0), 0);
             });
 
+            const proyectoData = last12Months.map(month => {
+                const monthData = descuentosData.filter(d => d.fecha.startsWith(month) && d.discount_type === 'proyecto');
+                return monthData.reduce((s, d) => s + (d.beneficio || 0), 0);
+            });
+
+            // Calcular META basada en stock anterior
+            const metaPercentage = parseFloat(document.getElementById('metaPercentage').value) || 5;
+            const metaData = last12Months.map((month, index) => {
+                if (index === 0) return 0; // Sin meta para el primer mes
+                
+                const prevMonth = last12Months[index - 1];
+                const prevStockData = stockData.filter(d => d.mes === prevMonth);
+                const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                return prevStockTotal * (metaPercentage / 100);
+            });
+
+            // Calcular meta actual y mostrarla
+            const currentMonthIndex = last12Months.indexOf(currentMonth);
+            if (currentMonthIndex > 0) {
+                const prevMonth = last12Months[currentMonthIndex - 1];
+                const prevStockData = stockData.filter(d => d.mes === prevMonth);
+                const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                const currentMeta = prevStockTotal * (metaPercentage / 100);
+                document.getElementById('metaValue').textContent = `Meta: $${formatNumber(currentMeta)}`;
+            }
+
+            const labels = last12Months.map(getMonthName);
+
+            // Gráfico 1: Evolución Ahorro - Real vs Proyecto
             if (charts.costosChart) charts.costosChart.destroy();
-            const ctx = document.getElementById('costosChart').getContext('2d');
-            charts.costosChart = new Chart(ctx, {
+            const ctx1 = document.getElementById('costosChart').getContext('2d');
+            charts.costosChart = new Chart(ctx1, {
                 type: 'line',
                 data: {
-                    labels: last12Months.map(getMonthName),
-                    datasets: [{
-                        label: 'Ahorro Total',
-                        data: chartData,
-                        borderColor: '#27ae60',
-                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4
-                    }]
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Ahorro Real',
+                            data: realData,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Ahorro Proyecto',
+                            data: proyectoData,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: { legend: { display: true, position: 'top' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Gráfico 2: Real vs Meta
+            if (charts.typeChart) charts.typeChart.destroy();
+            const ctx2 = document.getElementById('typeChart').getContext('2d');
+            charts.typeChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Ahorro Real',
+                            data: realData,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Meta',
+                            data: metaData,
+                            borderColor: '#f39c12',
+                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            borderDash: [5, 5],
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'top' } },
                     scales: { y: { beginAtZero: true } }
                 }
             });

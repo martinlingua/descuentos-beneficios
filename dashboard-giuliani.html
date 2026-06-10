@@ -601,15 +601,30 @@
             <!-- GRÁFICOS COMPARATIVOS (AÑO PASADO VS ESTE AÑO) -->
             <div class="charts-grid">
                 <div class="chart-container">
-                    <div class="chart-title">Comparativa Herrajes: Año Pasado vs Este Año</div>
+                    <div class="chart-title">Comparativa Herrajes: Año Pasado vs Este Año (Pesos)</div>
                     <div class="chart-canvas">
                         <canvas id="herrajesCompChart"></canvas>
                     </div>
                 </div>
                 <div class="chart-container">
-                    <div class="chart-title">Comparativa Insumos: Año Pasado vs Este Año</div>
+                    <div class="chart-title">Comparativa Insumos: Año Pasado vs Este Año (Pesos)</div>
                     <div class="chart-canvas">
                         <canvas id="insumosCompChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Comparativa Herrajes: Año Pasado vs Este Año (USD)</div>
+                    <div class="chart-canvas">
+                        <canvas id="herrajesCompUSDChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Comparativa Insumos: Año Pasado vs Este Año (USD)</div>
+                    <div class="chart-canvas">
+                        <canvas id="insumosCompUSDChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -1061,7 +1076,7 @@
                     });
                 }
 
-                // Calcular datos para Herrajes
+                // Calcular datos para Herrajes (PESOS)
                 const herrajesActual = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
@@ -1072,7 +1087,7 @@
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
-                // Calcular datos para Insumos
+                // Calcular datos para Insumos (PESOS)
                 const insumosActual = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
@@ -1083,9 +1098,39 @@
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
+                // Calcular datos para Herrajes (USD)
+                const herrajesActualUSD = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                const herrajesPasadoUSD = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'herrajes');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                // Calcular datos para Insumos (USD)
+                const insumosActualUSD = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                const insumosPasadoUSD = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'insumos');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
                 const labels = comparaciones.map(c => c.label);
 
-                // Gráfico Herrajes Comparativo
+                // Gráfico Herrajes Comparativo (PESOS)
                 const herrajesCompElement = document.getElementById('herrajesCompChart');
                 if (herrajesCompElement) {
                     if (charts.herrajesCompChart) charts.herrajesCompChart.destroy();
@@ -1104,8 +1149,8 @@
                                 {
                                     label: 'Año Pasado',
                                     data: herrajesPasado,
-                                    backgroundColor: '#ecf0f1',
-                                    borderColor: '#bdc3c7',
+                                    backgroundColor: '#34495e',
+                                    borderColor: '#2c3e50',
                                     borderWidth: 1
                                 }
                             ]
@@ -1123,7 +1168,7 @@
                     });
                 }
 
-                // Gráfico Insumos Comparativo
+                // Gráfico Insumos Comparativo (PESOS)
                 const insumosCompElement = document.getElementById('insumosCompChart');
                 if (insumosCompElement) {
                     if (charts.insumosCompChart) charts.insumosCompChart.destroy();
@@ -1142,8 +1187,84 @@
                                 {
                                     label: 'Año Pasado',
                                     data: insumosPasado,
-                                    backgroundColor: '#ecf0f1',
-                                    borderColor: '#bdc3c7',
+                                    backgroundColor: '#34495e',
+                                    borderColor: '#2c3e50',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico Herrajes Comparativo (USD)
+                const herrajesCompUSDElement = document.getElementById('herrajesCompUSDChart');
+                if (herrajesCompUSDElement) {
+                    if (charts.herrajesCompUSDChart) charts.herrajesCompUSDChart.destroy();
+                    charts.herrajesCompUSDChart = new Chart(herrajesCompUSDElement.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Este Año',
+                                    data: herrajesActualUSD,
+                                    backgroundColor: '#e74c3c',
+                                    borderColor: '#c0392b',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Año Pasado',
+                                    data: herrajesPasadoUSD,
+                                    backgroundColor: '#34495e',
+                                    borderColor: '#2c3e50',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico Insumos Comparativo (USD)
+                const insumosCompUSDElement = document.getElementById('insumosCompUSDChart');
+                if (insumosCompUSDElement) {
+                    if (charts.insumosCompUSDChart) charts.insumosCompUSDChart.destroy();
+                    charts.insumosCompUSDChart = new Chart(insumosCompUSDElement.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Este Año',
+                                    data: insumosActualUSD,
+                                    backgroundColor: '#3498db',
+                                    borderColor: '#2980b9',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Año Pasado',
+                                    data: insumosPasadoUSD,
+                                    backgroundColor: '#34495e',
+                                    borderColor: '#2c3e50',
                                     borderWidth: 1
                                 }
                             ]

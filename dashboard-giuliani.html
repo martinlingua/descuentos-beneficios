@@ -430,16 +430,35 @@
             </p>
 
             <!-- CONFIGURACIÓN DE META -->
-            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; align-items: center;">
-                <label style="font-weight: 600; color: #333;">Meta Ahorro Real (% del stock anterior):</label>
-                <input type="number" id="metaPercentage" value="5" min="0" max="100" step="0.5" style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                <span style="color: #666; font-size: 13px;">%</span>
-                <span id="metaValue" style="font-weight: 600; color: #3498db; margin-left: 20px;">Meta: Cargando...</span>
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 12px;">
+                    <label style="font-weight: 600; color: #333;">Tipo de Meta:</label>
+                    <select id="metaType" onchange="updateMetaDisplay()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-family: 'DM Sans', sans-serif;">
+                        <option value="percentage">% del Stock Anterior</option>
+                        <option value="fixed">Valor Fijo ($)</option>
+                    </select>
+                </div>
+
+                <div id="metaPercentageContainer" style="display: flex; gap: 15px; align-items: center;">
+                    <label style="font-weight: 600; color: #333;">Meta (%):</label>
+                    <input type="number" id="metaPercentage" value="5" min="0" max="100" step="0.5" onchange="reloadMetaCharts()" style="width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <span style="color: #666; font-size: 13px;">%</span>
+                </div>
+
+                <div id="metaFixedContainer" style="display: none; gap: 15px; align-items: center;">
+                    <label style="font-weight: 600; color: #333;">Meta ($):</label>
+                    <input type="number" id="metaFixed" value="10000" min="0" step="100" onchange="reloadMetaCharts()" style="width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <span style="color: #666; font-size: 13px;">Pesos</span>
+                </div>
+
+                <div style="margin-top: 12px;">
+                    <span id="metaValue" style="font-weight: 600; color: #3498db;">Meta: Cargando...</span>
+                </div>
             </div>
 
             <div class="kpi-grid">
                 <div class="kpi-card real">
-                    <div class="kpi-label">Ahorro Real</div>
+                    <div class="kpi-label">Ahorro Real + Beneficios</div>
                     <div class="kpi-value" id="realTotal">$0</div>
                 </div>
                 <div class="kpi-card proyecto">
@@ -447,7 +466,7 @@
                     <div class="kpi-value" id="proyectoTotal">$0</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Beneficios</div>
+                    <div class="kpi-label">Beneficios (separado)</div>
                     <div class="kpi-value" id="benefitsTotal">$0</div>
                 </div>
                 <div class="kpi-card">
@@ -458,13 +477,13 @@
 
             <div class="charts-grid">
                 <div class="chart-container">
-                    <div class="chart-title">Evolución Ahorro - Real vs Proyecto (12 meses)</div>
+                    <div class="chart-title">Evolución Ahorro - (Real + Beneficios) vs Proyecto (12 meses)</div>
                     <div class="chart-canvas">
                         <canvas id="costosChart"></canvas>
                     </div>
                 </div>
                 <div class="chart-container">
-                    <div class="chart-title">Ahorro Real vs Meta (12 meses)</div>
+                    <div class="chart-title">(Real + Beneficios) vs Meta (12 meses)</div>
                     <div class="chart-canvas">
                         <canvas id="typeChart"></canvas>
                     </div>
@@ -677,11 +696,9 @@
             document.getElementById('scorecardMonth').value = `${year}-${month}`;
             document.getElementById('stockMes').value = `${year}-${month}`;
             
-            // Agregar evento para actualizar gráficos cuando cambia meta
-            document.getElementById('metaPercentage').addEventListener('change', () => {
-                const currentMonth = document.getElementById('monthSelector').value;
-                loadCostosCharts(currentMonth);
-            });
+            // Agregar eventos para actualizar gráficos cuando cambian valores de meta
+            document.getElementById('metaPercentage').addEventListener('change', reloadMetaCharts);
+            document.getElementById('metaFixed').addEventListener('change', reloadMetaCharts);
             
             loadCostos();
             loadProveedores();
@@ -745,10 +762,12 @@
                 last12Months.push(`${d.getFullYear()}-${m}`);
             }
 
-            // Calcular datos REALES y PROYECTO separados
-            const realData = last12Months.map(month => {
-                const monthData = descuentosData.filter(d => d.fecha.startsWith(month) && d.discount_type === 'real');
-                return monthData.reduce((s, d) => s + (d.beneficio || 0), 0);
+            // Calcular datos: (REAL + BENEFICIOS) y PROYECTO separados
+            const realBenefitsData = last12Months.map(month => {
+                const monthData = descuentosData.filter(d => d.fecha.startsWith(month));
+                const real = monthData.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0);
+                const benefits = monthData.filter(d => d.tipo === 'beneficio').reduce((s, d) => s + (d.benefit_total || 0), 0);
+                return real + benefits;
             });
 
             const proyectoData = last12Months.map(month => {
@@ -756,30 +775,41 @@
                 return monthData.reduce((s, d) => s + (d.beneficio || 0), 0);
             });
 
-            // Calcular META basada en stock anterior
-            const metaPercentage = parseFloat(document.getElementById('metaPercentage').value) || 5;
-            const metaData = last12Months.map((month, index) => {
-                if (index === 0) return 0; // Sin meta para el primer mes
-                
-                const prevMonth = last12Months[index - 1];
-                const prevStockData = stockData.filter(d => d.mes === prevMonth);
-                const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                return prevStockTotal * (metaPercentage / 100);
-            });
+            // Calcular META basada en tipo seleccionado
+            const metaType = document.getElementById('metaType').value;
+            let metaData = [];
+            let currentMetaValue = 0;
 
-            // Calcular meta actual y mostrarla
-            const currentMonthIndex = last12Months.indexOf(currentMonth);
-            if (currentMonthIndex > 0) {
-                const prevMonth = last12Months[currentMonthIndex - 1];
-                const prevStockData = stockData.filter(d => d.mes === prevMonth);
-                const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                const currentMeta = prevStockTotal * (metaPercentage / 100);
-                document.getElementById('metaValue').textContent = `Meta: $${formatNumber(currentMeta)}`;
+            if (metaType === 'percentage') {
+                const metaPercentage = parseFloat(document.getElementById('metaPercentage').value) || 5;
+                metaData = last12Months.map((month, index) => {
+                    if (index === 0) return 0;
+                    const prevMonth = last12Months[index - 1];
+                    const prevStockData = stockData.filter(d => d.mes === prevMonth);
+                    const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    return prevStockTotal * (metaPercentage / 100);
+                });
+
+                // Mostrar meta actual
+                const currentMonthIndex = last12Months.indexOf(currentMonth);
+                if (currentMonthIndex > 0) {
+                    const prevMonth = last12Months[currentMonthIndex - 1];
+                    const prevStockData = stockData.filter(d => d.mes === prevMonth);
+                    const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    currentMetaValue = prevStockTotal * (metaPercentage / 100);
+                }
+            } else {
+                // Meta fija
+                const metaFixed = parseFloat(document.getElementById('metaFixed').value) || 10000;
+                metaData = last12Months.map(() => metaFixed);
+                currentMetaValue = metaFixed;
             }
+
+            document.getElementById('metaValue').textContent = `Meta: $${formatNumber(currentMetaValue)}`;
 
             const labels = last12Months.map(getMonthName);
 
-            // Gráfico 1: Evolución Ahorro - Real vs Proyecto
+            // Gráfico 1: Evolución Ahorro - (Real + Beneficios) vs Proyecto
             if (charts.costosChart) charts.costosChart.destroy();
             const ctx1 = document.getElementById('costosChart').getContext('2d');
             charts.costosChart = new Chart(ctx1, {
@@ -788,8 +818,8 @@
                     labels,
                     datasets: [
                         {
-                            label: 'Ahorro Real',
-                            data: realData,
+                            label: 'Real + Beneficios',
+                            data: realBenefitsData,
                             borderColor: '#e74c3c',
                             backgroundColor: 'rgba(231, 76, 60, 0.1)',
                             borderWidth: 3,
@@ -797,7 +827,7 @@
                             tension: 0.4
                         },
                         {
-                            label: 'Ahorro Proyecto',
+                            label: 'Proyecto',
                             data: proyectoData,
                             borderColor: '#3498db',
                             backgroundColor: 'rgba(52, 152, 219, 0.1)',
@@ -815,7 +845,7 @@
                 }
             });
 
-            // Gráfico 2: Real vs Meta
+            // Gráfico 2: (Real + Beneficios) vs Meta
             if (charts.typeChart) charts.typeChart.destroy();
             const ctx2 = document.getElementById('typeChart').getContext('2d');
             charts.typeChart = new Chart(ctx2, {
@@ -824,8 +854,8 @@
                     labels,
                     datasets: [
                         {
-                            label: 'Ahorro Real',
-                            data: realData,
+                            label: 'Real + Beneficios',
+                            data: realBenefitsData,
                             borderColor: '#e74c3c',
                             backgroundColor: 'rgba(231, 76, 60, 0.1)',
                             borderWidth: 3,
@@ -851,6 +881,27 @@
                     scales: { y: { beginAtZero: true } }
                 }
             });
+        }
+
+        function updateMetaDisplay() {
+            const metaType = document.getElementById('metaType').value;
+            const percentageContainer = document.getElementById('metaPercentageContainer');
+            const fixedContainer = document.getElementById('metaFixedContainer');
+
+            if (metaType === 'percentage') {
+                percentageContainer.style.display = 'flex';
+                fixedContainer.style.display = 'none';
+            } else {
+                percentageContainer.style.display = 'none';
+                fixedContainer.style.display = 'flex';
+            }
+
+            reloadMetaCharts();
+        }
+
+        function reloadMetaCharts() {
+            const currentMonth = document.getElementById('monthSelector').value;
+            loadCostosCharts(currentMonth);
         }
 
         // ============ SECCIÓN PROVEEDORES ============

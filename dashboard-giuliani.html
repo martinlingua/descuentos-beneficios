@@ -803,6 +803,13 @@
             loadCostosCharts(month);
         }
 
+        function reloadMetaCharts() {
+            const currentMonth = document.getElementById('monthSelector').value;
+            if (currentMonth) {
+                loadCostosCharts(currentMonth);
+            }
+        }
+
         async function loadCostosCharts(currentMonth) {
             const { data: descuentosData } = await supabase.from('descuentos').select('*').order('fecha');
             const { data: stockData } = await supabase.from('stock').select('*').order('mes');

@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Giuliani - Compras & Operaciones</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0;
+            background: #f8f7f4;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .tab-button {
+            padding: 18px 20px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            color: #7f8c8d;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .tab-button.active {
+            color: #2c3e50;
+            background: white;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #27ae60;
+        }
+
+        .content {
+            padding: 30px;
+            display: none;
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .kpi-card.real {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+        }
+
+        .kpi-card.proyecto {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+        }
+
+        .kpi-card.insumos {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+
+        .kpi-card.herrajes {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+
+        .kpi-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-left: 4px solid #2c3e50;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .chart-canvas {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+
+        .form-section {
+            background: #f8f7f4;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 6px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: auto auto;
+            gap: 10px;
+        }
+
+        .btn-primary {
+            padding: 12px 24px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #229954;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            padding: 12px 24px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background: #2c3e50;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 13px;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        tr:hover {
+            background: #f0f0f0;
+        }
+
+        .score-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .score-excellent {
+            background: #d4edda;
+            color: #27ae60;
+        }
+
+        .score-good {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .score-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .score-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .month-selector {
+            margin-bottom: 20px;
+        }
+
+        .month-selector input {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .no-data {
+            color: #999;
+            text-align: center;
+            padding: 40px;
+            font-style: italic;
+        }
+
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .login-container h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .login-container input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+        }
+
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .login-container button:hover {
+            background: #229954;
+        }
+
+        @media (max-width: 768px) {
+            .tabs {
+                grid-template-columns: 1fr;
+            }
+
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            header h1 {
+                font-size: 24px;
+            }
+
+            .content {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN -->
+    <div id="loginScreen" class="login-container">
+        <h1>🔐 Dashboard Giuliani</h1>
+        <input type="password" id="passwordInput" placeholder="Ingresa contraseña">
+        <button onclick="checkLogin()">Acceder</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="container" style="display: none;">
+        <header>
+            <h1>📊 Dashboard Compras & Operaciones</h1>
+            <p>Giuliani S.A. - Análisis en tiempo real</p>
+        </header>
+
+        <!-- PESTAÑAS -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('costos')">💰 Costos</button>
+            <button class="tab-button" onclick="switchTab('proveedores')">🤝 Proveedores</button>
+            <button class="tab-button" onclick="switchTab('stock')">📦 Stock</button>
+        </div>
+
+        <!-- SECCIÓN COSTOS -->
+        <div id="costos" class="content active">
+            <div class="month-selector">
+                <label>Mes:</label>
+                <input type="month" id="monthSelector" onchange="loadCostos()">
+            </div>
+
+            <p style="color: #666; font-size: 13px; margin-bottom: 20px;">
+                💡 Los descuentos se cargan en la app <strong>descuentos-pikey.html</strong> y se muestran aquí automáticamente.
+            </p>
+
+            <!-- CONFIGURACIÓN DE META -->
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="margin-bottom: 12px;">
+                    <label style="font-weight: 600; color: #333; margin-bottom: 8px; display: block;">Configurar Metas para este mes:</label>
+                </div>
+
+                <div style="display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-weight: 600; color: #333;">Meta % Stock:</label>
+                        <input type="number" id="metaPercentage" value="5" min="0" max="100" step="0.5" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <span style="color: #666; font-size: 13px;">%</span>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-weight: 600; color: #333;">Meta Fija:</label>
+                        <input type="number" id="metaFixed" value="10000" min="0" step="100" style="width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <span style="color: #666; font-size: 13px;">$</span>
+                    </div>
+
+                    <button onclick="saveMeta()" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">💾 Guardar Meta</button>
+                </div>
+
+                <div id="metaStatus" style="font-size: 12px; color: #666;">
+                    <span id="metaValue">Meta guardada: Cargando...</span>
+                </div>
+            </div>
+
+            <div class="kpi-grid">
+                <div class="kpi-card real">
+                    <div class="kpi-label">Ahorro Real + Beneficios</div>
+                    <div class="kpi-value" id="realTotal">$0</div>
+                </div>
+                <div class="kpi-card proyecto">
+                    <div class="kpi-label">Ahorro Proyecto</div>
+                    <div class="kpi-value" id="proyectoTotal">$0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Beneficios (separado)</div>
+                    <div class="kpi-value" id="benefitsTotal">$0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Ahorro Total</div>
+                    <div class="kpi-value" id="grandTotal">$0</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Evolución Ahorro - (Real + Beneficios) vs Proyecto (12 meses)</div>
+                    <div class="chart-canvas">
+                        <canvas id="costosChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">(Real + Beneficios) vs Meta (12 meses)</div>
+                    <div class="chart-canvas">
+                        <canvas id="typeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN PROVEEDORES -->
+        <div id="proveedores" class="content">
+            <div class="form-section">
+                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Agregar Proveedor</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <input type="text" id="provNombre" placeholder="Ej: Proveedor XYZ">
+                    </div>
+                    <div class="form-group">
+                        <label>Contacto</label>
+                        <input type="text" id="provContacto" placeholder="Persona de contacto">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="provEmail" placeholder="correo@proveedor.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" id="provTelefono" placeholder="Teléfono">
+                    </div>
+                    <div class="form-group">
+                        <label>Ciudad</label>
+                        <input type="text" id="provCiudad" placeholder="Mendoza">
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="addProveedor()">Guardar Proveedor</button>
+                </div>
+            </div>
+
+            <div class="month-selector">
+                <label>Mes Scorecard:</label>
+                <input type="month" id="scorecardMonth" value="">
+            </div>
+
+            <div class="form-section">
+                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Evaluar Proveedor (Escala 1-10)</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Proveedor *</label>
+                        <select id="proveedorSelect">
+                            <option value="">-- Selecciona proveedor --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cumplimiento Entrega (1-10)</label>
+                        <input type="number" id="cumplimiento" min="1" max="10" value="8">
+                    </div>
+                    <div class="form-group">
+                        <label>Calidad (1-10)</label>
+                        <input type="number" id="calidad" min="1" max="10" value="8">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Competitivo (1-10)</label>
+                        <input type="number" id="precio" min="1" max="10" value="8">
+                    </div>
+                    <div class="form-group">
+                        <label>Cercanía (1-10)</label>
+                        <input type="number" id="cercania" min="1" max="10" value="8">
+                    </div>
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <textarea id="notasProveedor" placeholder="Observaciones..."></textarea>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="addScorecard()">Guardar Evaluación</button>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-title">Ranking de Proveedores (Mes Actual)</div>
+                <div id="proveedoresTable"></div>
+            </div>
+        </div>
+
+        <!-- SECCIÓN STOCK -->
+        <div id="stock" class="content">
+            <div class="form-section">
+                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Registrar Stock</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Mes *</label>
+                        <input type="month" id="stockMes">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo *</label>
+                        <select id="stockTipo" style="padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px;">
+                            <option value="">-- Selecciona --</option>
+                            <option value="herrajes">Herrajes</option>
+                            <option value="insumos">Insumos</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Stock en $ *</label>
+                        <input type="number" id="stockValor" step="0.01" placeholder="Ej: 15000">
+                    </div>
+                    <div class="form-group">
+                        <label>Valor Dólar Mes *</label>
+                        <input type="number" id="valorDolar" step="0.01" placeholder="Ej: 950.50">
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="addStock()">Guardar Stock</button>
+                </div>
+            </div>
+
+            <!-- SELECTOR DE MES PARA KPIs -->
+            <div class="month-selector" style="margin-bottom: 25px;">
+                <label>Ver Stock de Mes:</label>
+                <input type="month" id="stockViewMes" onchange="loadStockForMonth()">
+            </div>
+
+            <!-- KPI CARDS -->
+            <div class="kpi-grid">
+                <div class="kpi-card herrajes">
+                    <div class="kpi-label">Stock Herrajes (Pesos)</div>
+                    <div class="kpi-value" id="herrajesTotal">$0</div>
+                </div>
+                <div class="kpi-card insumos">
+                    <div class="kpi-label">Stock Insumos (Pesos)</div>
+                    <div class="kpi-value" id="insumosTotal">$0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Stock Total (Pesos)</div>
+                    <div class="kpi-value" id="stockTotalPesos">$0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Stock Total (USD)</div>
+                    <div class="kpi-value" id="stockTotalUSD">USD $0</div>
+                </div>
+            </div>
+
+            <!-- GRÁFICOS COMPARATIVOS (AÑO PASADO VS ESTE AÑO) -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Comparativa Herrajes: Año Pasado vs Este Año (Pesos)</div>
+                    <div class="chart-canvas">
+                        <canvas id="herrajesCompChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Comparativa Insumos: Año Pasado vs Este Año (Pesos)</div>
+                    <div class="chart-canvas">
+                        <canvas id="insumosCompChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Comparativa Herrajes: Año Pasado vs Este Año (USD)</div>
+                    <div class="chart-canvas">
+                        <canvas id="herrajesCompUSDChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Comparativa Insumos: Año Pasado vs Este Año (USD)</div>
+                    <div class="chart-canvas">
+                        <canvas id="insumosCompUSDChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA DE HISTÓRICO -->
+            <div class="chart-container" style="margin-bottom: 30px; margin-top: 30px;">
+                <div class="chart-title">Historial de Stock Cargado</div>
+                <div id="stockTable"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============ CONFIGURACIÓN SUPABASE ============
+        const SUPABASE_URL = "https://hhjcfuawfyxbdkktkkmn.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_BjcUhvUle3Q-0jopsh8lvQ_O9GjjVFS";
+        const PASSWORD = "comprasG2026";
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentTab = 'costos';
+        let charts = {};
+
+        // ============ LOGIN ============
+        function checkLogin() {
+            const password = document.getElementById('passwordInput').value;
+            if (password === PASSWORD) {
+                sessionStorage.setItem('loggedIn', 'true');
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                initDashboard();
+            } else {
+                alert('Contraseña incorrecta');
+            }
+        }
+
+        function initDashboard() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            document.getElementById('monthSelector').value = `${year}-${month}`;
+            document.getElementById('scorecardMonth').value = `${year}-${month}`;
+            document.getElementById('stockMes').value = `${year}-${month}`;
+            
+            // Agregar eventos para actualizar gráficos cuando cambian valores de meta
+            document.getElementById('metaPercentage').addEventListener('change', reloadMetaCharts);
+            document.getElementById('metaFixed').addEventListener('change', reloadMetaCharts);
+            
+            loadCostos();
+            loadProveedores();
+            loadStock();
+        }
+
+        // ============ NAVEGACIÓN PESTAÑAS ============
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab).classList.add('active');
+            currentTab = tab;
+        }
+
+        // ============ UTILIDADES ============
+        function formatNumber(num) {
+            return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+
+        function getMonthName(monthStr) {
+            const [year, month] = monthStr.split('-');
+            const date = new Date(year, parseInt(month) - 1);
+            return date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
+        }
+
+        // ============ SECCIÓN COSTOS ============
+        // ============ SECCIÓN COSTOS ============
+        // Nota: Los descuentos se cargan desde descuentos-pikey.html
+        // Esta app solo LEE y MUESTRA esos descuentos
+
+        async function loadCostos() {
+            const month = document.getElementById('monthSelector').value;
+            const { data: descuentos } = await supabase
+                .from('descuentos')
+                .select('*')
+                .like('fecha', `${month}%`);
+
+            const real = descuentos.filter(d => d.tipo === 'descuento' && d.discount_type === 'real').reduce((sum, d) => sum + (d.beneficio || 0), 0);
+            const proyecto = descuentos.filter(d => d.tipo === 'descuento' && d.discount_type === 'proyecto').reduce((sum, d) => sum + (d.beneficio || 0), 0);
+            const benefits = descuentos.filter(d => d.tipo === 'beneficio').reduce((sum, d) => sum + (d.benefit_total || 0), 0);
+
+            document.getElementById('realTotal').textContent = '$' + formatNumber(real);
+            document.getElementById('proyectoTotal').textContent = '$' + formatNumber(proyecto);
+            document.getElementById('benefitsTotal').textContent = '$' + formatNumber(benefits);
+            document.getElementById('grandTotal').textContent = '$' + formatNumber(real + proyecto + benefits);
+
+            // Cargar metas guardadas para este mes
+            await loadMetasForMonth(month);
+
+            loadCostosCharts(month);
+        }
+
+        async function loadMetasForMonth(month) {
+            const { data } = await supabase
+                .from('metas')
+                .select('*')
+                .eq('mes', month);
+
+            if (data && data.length > 0) {
+                document.getElementById('metaPercentage').value = data[0].meta_porcentaje || 5;
+                document.getElementById('metaFixed').value = data[0].meta_fija || 10000;
+                document.getElementById('metaStatus').innerHTML = `<span style="color: #27ae60; font-weight: 600;">✓ Meta guardada para ${month}</span>`;
+            } else {
+                document.getElementById('metaStatus').innerHTML = `<span style="color: #e74c3c;">⚠ Sin meta guardada. Completa y haz clic en "Guardar Meta"</span>`;
+            }
+        }
+
+        async function saveMeta() {
+            const month = document.getElementById('monthSelector').value;
+            const metaPercentage = parseFloat(document.getElementById('metaPercentage').value) || 5;
+            const metaFixed = parseFloat(document.getElementById('metaFixed').value) || 10000;
+
+            if (!month) { alert('Selecciona un mes'); return; }
+
+            // Intentar actualizar si existe, si no crear
+            const { data: existing } = await supabase
+                .from('metas')
+                .select('*')
+                .eq('mes', month);
+
+            if (existing && existing.length > 0) {
+                // Actualizar
+                const { error } = await supabase
+                    .from('metas')
+                    .update({ meta_porcentaje: metaPercentage, meta_fija: metaFixed })
+                    .eq('mes', month);
+                if (error) { alert('Error: ' + error.message); return; }
+            } else {
+                // Crear
+                const { error } = await supabase
+                    .from('metas')
+                    .insert([{ mes: month, meta_porcentaje: metaPercentage, meta_fija: metaFixed }]);
+                if (error) { alert('Error: ' + error.message); return; }
+            }
+
+            alert('Meta guardada para ' + month);
+            await loadMetasForMonth(month);
+            loadCostosCharts(month);
+        }
+
+        async function loadCostosCharts(currentMonth) {
+            const { data: descuentosData } = await supabase.from('descuentos').select('*').order('fecha');
+            const { data: stockData } = await supabase.from('stock').select('*').order('mes');
+            const { data: metasData } = await supabase.from('metas').select('*').order('mes');
+            
+            const last12Months = [];
+            const today = new Date(currentMonth + '-01');
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                last12Months.push(`${d.getFullYear()}-${m}`);
+            }
+
+            // Calcular datos: REAL, (REAL + BENEFICIOS) y PROYECTO
+            const realData = last12Months.map(month => {
+                const monthData = descuentosData.filter(d => d.fecha.startsWith(month));
+                return monthData.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0);
+            });
+
+            const realBenefitsData = last12Months.map(month => {
+                const monthData = descuentosData.filter(d => d.fecha.startsWith(month));
+                const real = monthData.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0);
+                const benefits = monthData.filter(d => d.tipo === 'beneficio').reduce((s, d) => s + (d.benefit_total || 0), 0);
+                return real + benefits;
+            });
+
+            const proyectoData = last12Months.map(month => {
+                const monthData = descuentosData.filter(d => d.fecha.startsWith(month) && d.discount_type === 'proyecto');
+                return monthData.reduce((s, d) => s + (d.beneficio || 0), 0);
+            });
+
+            // Calcular META PORCENTAJE para cada mes (del stock anterior)
+            const metaPercentageData = last12Months.map((month, index) => {
+                if (index === 0) return 0;
+                
+                const metaMes = metasData ? metasData.find(m => m.mes === month) : null;
+                const metaPercent = metaMes ? (metaMes.meta_porcentaje || 5) : 5;
+                
+                const prevMonth = last12Months[index - 1];
+                const prevStockData = stockData.filter(d => d.mes === prevMonth);
+                const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                return prevStockTotal * (metaPercent / 100);
+            });
+
+            // Calcular META FIJA para cada mes (de la tabla)
+            const metaFixedData = last12Months.map(month => {
+                const metaMes = metasData ? metasData.find(m => m.mes === month) : null;
+                return metaMes ? (metaMes.meta_fija || 10000) : 10000;
+            });
+
+            const labels = last12Months.map(getMonthName);
+
+            // Gráfico 1: Evolución Ahorro - (Real + Beneficios) vs Proyecto
+            if (charts.costosChart) charts.costosChart.destroy();
+            const ctx1 = document.getElementById('costosChart').getContext('2d');
+            charts.costosChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Real + Beneficios',
+                            data: realBenefitsData,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Proyecto',
+                            data: proyectoData,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'top' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // Gráfico 2: Real, Real+Beneficios vs Meta % y Meta Fija
+            if (charts.typeChart) charts.typeChart.destroy();
+            const ctx2 = document.getElementById('typeChart').getContext('2d');
+            charts.typeChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Real',
+                            data: realData,
+                            borderColor: '#9b59b6',
+                            backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Real + Beneficios',
+                            data: realBenefitsData,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            borderWidth: 3,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Meta % (Stock)',
+                            data: metaPercentageData,
+                            borderColor: '#f39c12',
+                            borderWidth: 2,
+                            fill: false,
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            pointRadius: 3
+                        },
+                        {
+                            label: 'Meta Fija ($)',
+                            data: metaFixedData,
+                            borderColor: '#16a085',
+                            borderWidth: 2,
+                            fill: false,
+                            borderDash: [5, 5],
+                            tension: 0.4,
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: true, position: 'top' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        // ============ SECCIÓN PROVEEDORES ============
+        async function loadProveedores() {
+            const { data } = await supabase.from('proveedores').select('*').eq('activo', true);
+            const select = document.getElementById('proveedorSelect');
+            select.innerHTML = '<option value="">-- Selecciona proveedor --</option>';
+            data?.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.nombre;
+                select.appendChild(opt);
+            });
+            loadScorecardTable();
+        }
+
+        async function addProveedor() {
+            const nombre = document.getElementById('provNombre').value;
+            if (!nombre) { alert('Completa nombre'); return; }
+
+            const { error } = await supabase.from('proveedores').insert([{
+                nombre,
+                contacto: document.getElementById('provContacto').value,
+                email: document.getElementById('provEmail').value,
+                telefono: document.getElementById('provTelefono').value,
+                ciudad: document.getElementById('provCiudad').value
+            }]);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('Proveedor agregado');
+                document.getElementById('provNombre').value = '';
+                document.getElementById('provContacto').value = '';
+                document.getElementById('provEmail').value = '';
+                document.getElementById('provTelefono').value = '';
+                document.getElementById('provCiudad').value = '';
+                loadProveedores();
+            }
+        }
+
+        async function addScorecard() {
+            const mes = document.getElementById('scorecardMonth').value;
+            const prov_id = document.getElementById('proveedorSelect').value;
+            if (!mes || !prov_id) { alert('Completa campos'); return; }
+
+            const promedio = (
+                parseInt(document.getElementById('cumplimiento').value) +
+                parseInt(document.getElementById('calidad').value) +
+                parseInt(document.getElementById('precio').value) +
+                parseInt(document.getElementById('cercania').value)
+            ) / 4;
+
+            const { error } = await supabase.from('proveedor_scorecard').insert([{
+                proveedor_id: prov_id,
+                mes,
+                cumplimiento_entrega: parseInt(document.getElementById('cumplimiento').value),
+                calidad: parseInt(document.getElementById('calidad').value),
+                precio_competitivo: parseInt(document.getElementById('precio').value),
+                cercania: parseInt(document.getElementById('cercania').value),
+                promedio,
+                notas: document.getElementById('notasProveedor').value
+            }]);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('Evaluación guardada');
+                loadScorecardTable();
+            }
+        }
+
+        async function editScorecard(id) {
+            const { data } = await supabase.from('proveedor_scorecard').select('*').eq('id', id);
+            if (!data || data.length === 0) return;
+
+            const s = data[0];
+            document.getElementById('cumplimiento').value = s.cumplimiento_entrega;
+            document.getElementById('calidad').value = s.calidad;
+            document.getElementById('precio').value = s.precio_competitivo;
+            document.getElementById('cercania').value = s.cercania;
+            document.getElementById('notasProveedor').value = s.notas || '';
+
+            // Cambiar botón a "Actualizar"
+            const btn = document.querySelector('button[onclick="addScorecard()"]');
+            btn.textContent = 'Actualizar Evaluación';
+            btn.onclick = () => updateScorecard(id);
+
+            window.scrollTo(0, document.querySelector('.form-section').offsetTop - 100);
+        }
+
+        async function updateScorecard(id) {
+            const cumplimiento = parseInt(document.getElementById('cumplimiento').value);
+            const calidad = parseInt(document.getElementById('calidad').value);
+            const precio = parseInt(document.getElementById('precio').value);
+            const cercania = parseInt(document.getElementById('cercania').value);
+            const promedio = (cumplimiento + calidad + precio + cercania) / 4;
+
+            const { error } = await supabase.from('proveedor_scorecard').update({
+                cumplimiento_entrega: cumplimiento,
+                calidad,
+                precio_competitivo: precio,
+                cercania,
+                promedio,
+                notas: document.getElementById('notasProveedor').value
+            }).eq('id', id);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('Evaluación actualizada');
+                loadScorecardTable();
+            }
+        }
+
+        async function deleteScorecard(id) {
+            if (!confirm('¿Eliminar esta evaluación?')) return;
+
+            const { error } = await supabase.from('proveedor_scorecard').delete().eq('id', id);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('Evaluación eliminada');
+                loadScorecardTable();
+            }
+        }
+
+        async function loadScorecardTable() {
+            const mes = document.getElementById('scorecardMonth').value;
+            const { data: scores } = await supabase
+                .from('proveedor_scorecard')
+                .select('*')
+                .eq('mes', mes);
+            
+            let html = '<table><thead><tr><th>Proveedor</th><th>Cumplimiento</th><th>Calidad</th><th>Precio</th><th>Cercanía</th><th>Promedio</th><th>Acciones</th></tr></thead><tbody>';
+            
+            if (scores?.length > 0) {
+                // Obtener datos de proveedores
+                const { data: provs } = await supabase.from('proveedores').select('*');
+                const provMap = {};
+                provs?.forEach(p => { provMap[p.id] = p.nombre; });
+
+                scores.sort((a, b) => b.promedio - a.promedio).forEach(s => {
+                    const pName = provMap[s.proveedor_id] || 'N/A';
+                    const badge = s.promedio >= 8 ? 'score-excellent' : s.promedio >= 7 ? 'score-good' : s.promedio >= 6 ? 'score-warning' : 'score-danger';
+                    html += `<tr>
+                        <td>${pName}</td>
+                        <td><span class="score-badge score-good">${s.cumplimiento_entrega}/10</span></td>
+                        <td><span class="score-badge score-good">${s.calidad}/10</span></td>
+                        <td><span class="score-badge score-good">${s.precio_competitivo}/10</span></td>
+                        <td><span class="score-badge score-good">${s.cercania}/10</span></td>
+                        <td><span class="score-badge ${badge}">${s.promedio.toFixed(1)}/10</span></td>
+                        <td>
+                            <button class="btn-secondary" onclick="editScorecard('${s.id}')" style="padding: 6px 12px; font-size: 12px;">Editar</button>
+                            <button class="btn-secondary" onclick="deleteScorecard('${s.id}')" style="padding: 6px 12px; font-size: 12px; margin-left: 5px;">Eliminar</button>
+                        </td>
+                    </tr>`;
+                });
+            } else {
+                html += '<tr><td colspan="7" class="no-data">Sin evaluaciones para este mes</td></tr>';
+            }
+            html += '</tbody></table>';
+            document.getElementById('proveedoresTable').innerHTML = html;
+        }
+
+        // ============ SECCIÓN STOCK ============
+        async function addStock() {
+            const mes = document.getElementById('stockMes').value;
+            const tipo = document.getElementById('stockTipo').value;
+            const valorPesos = parseFloat(document.getElementById('stockValor').value);
+            const valorDolar = parseFloat(document.getElementById('valorDolar').value);
+
+            if (!mes || !tipo || !valorPesos || !valorDolar) {
+                alert('Completa todos los campos obligatorios');
+                return;
+            }
+
+            const valorUSD = valorPesos / valorDolar;
+
+            const { error } = await supabase.from('stock').insert([{
+                mes,
+                tipo,
+                categoria: tipo,
+                cantidad: 0,
+                precio_unitario: 0,
+                stock_valor_pesos: valorPesos,
+                valor_dolar: valorDolar,
+                stock_valor_usd: valorUSD
+            }]);
+
+            if (error) {
+                alert('Error: ' + error.message);
+                return;
+            }
+
+            alert('Stock registrado');
+            document.getElementById('stockMes').value = '';
+            document.getElementById('stockTipo').value = '';
+            document.getElementById('stockValor').value = '';
+            document.getElementById('valorDolar').value = '';
+            loadStock();
+        }
+
+        async function loadStock() {
+            const { data: stockDataRaw } = await supabase.from('stock').select('*').order('mes', { ascending: false });
+            
+            let data = stockDataRaw || [];
+            if (data.length === 0) {
+                console.log('No hay datos de stock');
+            }
+
+            // Mostrar tabla de stocks
+            loadStockTable(data);
+
+            // Establecer mes actual por defecto
+            const today = new Date();
+            const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+            if (!document.getElementById('stockViewMes').value) {
+                document.getElementById('stockViewMes').value = currentMonth;
+            }
+
+            // Cargar datos para el mes seleccionado
+            loadStockForMonth();
+
+            // Cargar gráficos comparativos
+            loadComparisonCharts(data);
+        }
+
+        async function loadStockForMonth() {
+            const selectedMonth = document.getElementById('stockViewMes').value;
+            
+            const { data: monthData } = await supabase.from('stock').select('*').eq('mes', selectedMonth);
+
+            if (!monthData || monthData.length === 0) {
+                document.getElementById('herrajesTotal').textContent = '$0';
+                document.getElementById('insumosTotal').textContent = '$0';
+                document.getElementById('stockTotalPesos').textContent = '$0';
+                document.getElementById('stockTotalUSD').textContent = 'USD $0';
+                return;
+            }
+
+            const herrajesTotal = monthData.filter(d => d.tipo === 'herrajes').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+            const insumosTotal = monthData.filter(d => d.tipo === 'insumos').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+
+            document.getElementById('herrajesTotal').textContent = '$' + formatNumber(herrajesTotal);
+            document.getElementById('insumosTotal').textContent = '$' + formatNumber(insumosTotal);
+            document.getElementById('stockTotalPesos').textContent = '$' + formatNumber(herrajesTotal + insumosTotal);
+
+            // Calcular promedio dólar mes
+            const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+            const totalUSD = (herrajesTotal + insumosTotal) / avgDolar;
+            document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
+        }
+
+        function loadStockTable(data) {
+            let html = '<table><thead><tr><th>Mes</th><th>Tipo</th><th>Stock ($)</th><th>Dólar</th><th>Stock (USD)</th><th>Acción</th></tr></thead><tbody>';
+            
+            if (data && data.length > 0) {
+                data.forEach(d => {
+                    const tipo = d.tipo === 'herrajes' ? '🔧 Herrajes' : '📦 Insumos';
+                    const stockUSD = d.stock_valor_pesos / (d.valor_dolar || 1);
+                    html += `<tr>
+                        <td>${d.mes}</td>
+                        <td>${tipo}</td>
+                        <td>$${formatNumber(d.stock_valor_pesos)}</td>
+                        <td>$${d.valor_dolar.toFixed(2)}</td>
+                        <td>USD $${formatNumber(stockUSD)}</td>
+                        <td><button class="btn-secondary" onclick="deleteStock('${d.id}')" style="padding: 6px 12px; font-size: 12px;">Eliminar</button></td>
+                    </tr>`;
+                });
+            } else {
+                html += '<tr><td colspan="6" class="no-data">Sin registros de stock</td></tr>';
+            }
+            html += '</tbody></table>';
+            document.getElementById('stockTable').innerHTML = html;
+        }
+
+        async function deleteStock(id) {
+            if (!confirm('¿Eliminar este registro de stock?')) return;
+
+            const { error } = await supabase.from('stock').delete().eq('id', id);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('Registro eliminado');
+                loadStock();
+            }
+        }
+
+        function loadComparisonCharts(data) {
+            if (!data || data.length === 0) {
+                console.log('Sin datos para gráficos');
+                return;
+            }
+
+            try {
+                // Obtener todos los meses disponibles
+                const meses = [...new Set(data.map(d => d.mes))].sort().reverse();
+                
+                if (meses.length === 0) return;
+
+                // Últimas 12 comparaciones (este mes vs año pasado)
+                const comparaciones = [];
+                for (let i = 0; i < Math.min(12, meses.length); i++) {
+                    const mesActual = meses[i];
+                    const [año, mes] = mesActual.split('-');
+                    const mesAnterior = `${parseInt(año) - 1}-${mes}`;
+                    
+                    comparaciones.push({
+                        label: `${mes}/${año.slice(2)}`,
+                        mesActual,
+                        mesAnterior,
+                        mesAnteriorExiste: meses.includes(mesAnterior)
+                    });
+                }
+
+                // Calcular datos para Herrajes (PESOS)
+                const herrajesActual = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
+                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                });
+
+                const herrajesPasado = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'herrajes');
+                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                });
+
+                // Calcular datos para Insumos (PESOS)
+                const insumosActual = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
+                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                });
+
+                const insumosPasado = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'insumos');
+                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                });
+
+                // Calcular datos para Herrajes (USD)
+                const herrajesActualUSD = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                const herrajesPasadoUSD = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'herrajes');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                // Calcular datos para Insumos (USD)
+                const insumosActualUSD = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                const insumosPasadoUSD = comparaciones.map(c => {
+                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'insumos');
+                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
+                    return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                const labels = comparaciones.map(c => c.label);
+
+                // Gráfico Herrajes Comparativo (PESOS)
+                const herrajesCompElement = document.getElementById('herrajesCompChart');
+                if (herrajesCompElement) {
+                    if (charts.herrajesCompChart) charts.herrajesCompChart.destroy();
+                    charts.herrajesCompChart = new Chart(herrajesCompElement.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Este Año',
+                                    data: herrajesActual,
+                                    backgroundColor: '#e74c3c',
+                                    borderColor: '#c0392b',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Año Pasado',
+                                    data: herrajesPasado,
+                                    backgroundColor: '#34495e',
+                                    borderColor: '#2c3e50',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico Insumos Comparativo (PESOS)
+                const insumosCompElement = document.getElementById('insumosCompChart');
+                if (insumosCompElement) {
+                    if (charts.insumosCompChart) charts.insumosCompChart.destroy();
+                    charts.insumosCompChart = new Chart(insumosCompElement.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Este Año',
+                                    data: insumosActual,
+                                    backgroundColor: '#3498db',
+                                    borderColor: '#2980b9',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Año Pasado',
+                                    data: insumosPasado,
+                                    backgroundColor: '#34495e',
+                                    borderColor: '#2c3e50',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico Herrajes Comparativo (USD)
+                const herrajesCompUSDElement = document.getElementById('herrajesCompUSDChart');
+                if (herrajesCompUSDElement) {
+                    if (charts.herrajesCompUSDChart) charts.herrajesCompUSDChart.destroy();
+                    charts.herrajesCompUSDChart = new Chart(herrajesCompUSDElement.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Este Año',
+                                    data: herrajesActualUSD,
+                                    backgroundColor: '#e74c3c',
+                                    borderColor: '#c0392b',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Año Pasado',
+                                    data: herrajesPasadoUSD,
+                                    backgroundColor: '#34495e',
+                                    borderColor: '#2c3e50',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // Gráfico Insumos Comparativo (USD)
+                const insumosCompUSDElement = document.getElementById('insumosCompUSDChart');
+                if (insumosCompUSDElement) {
+                    if (charts.insumosCompUSDChart) charts.insumosCompUSDChart.destroy();
+                    charts.insumosCompUSDChart = new Chart(insumosCompUSDElement.getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: 'Este Año',
+                                    data: insumosActualUSD,
+                                    backgroundColor: '#3498db',
+                                    borderColor: '#2980b9',
+                                    borderWidth: 1
+                                },
+                                {
+                                    label: 'Año Pasado',
+                                    data: insumosPasadoUSD,
+                                    backgroundColor: '#34495e',
+                                    borderColor: '#2c3e50',
+                                    borderWidth: 1
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Error creando gráficos comparativos:', e);
+            }
+        }
+
+        // Verificar login al cargar
+        window.addEventListener('load', () => {
+            if (sessionStorage.getItem('loggedIn')) {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+                initDashboard();
+            }
+        });
+    </script>
+</body>
+</html>

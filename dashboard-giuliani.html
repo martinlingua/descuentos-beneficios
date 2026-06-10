@@ -1233,6 +1233,8 @@
         }
 
         function loadComparisonCharts(data) {
+            console.log('loadComparisonCharts called with data:', data ? data.length : 0, 'items');
+            
             if (!data || data.length === 0) {
                 console.log('Sin datos para gráficos');
                 return;
@@ -1241,8 +1243,12 @@
             try {
                 // Obtener todos los meses disponibles
                 const meses = [...new Set(data.map(d => d.mes))].sort().reverse();
+                console.log('Meses encontrados:', meses);
                 
-                if (meses.length === 0) return;
+                if (meses.length === 0) {
+                    console.log('No hay meses');
+                    return;
+                }
 
                 // Últimas 12 comparaciones (este mes vs año pasado)
                 const comparaciones = [];

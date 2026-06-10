@@ -425,51 +425,9 @@
                 <input type="month" id="monthSelector" onchange="loadCostos()">
             </div>
 
-            <!-- FORMULARIO NUEVO DESCUENTO -->
-            <div class="form-section">
-                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Agregar Descuento</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Fecha *</label>
-                        <input type="date" id="costFecha">
-                    </div>
-                    <div class="form-group">
-                        <label>Tipo *</label>
-                        <select id="costTipo" style="padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px;">
-                            <option value="">-- Selecciona --</option>
-                            <option value="real">💰 Real (Confirmado)</option>
-                            <option value="proyecto">📋 Proyecto (Pendiente)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Proveedor *</label>
-                        <input type="text" id="costProveedor" placeholder="Ej: Arauco">
-                    </div>
-                    <div class="form-group">
-                        <label>Artículo *</label>
-                        <input type="text" id="costArticulo" placeholder="Ej: Madera">
-                    </div>
-                    <div class="form-group">
-                        <label>Cantidad *</label>
-                        <input type="number" id="costCantidad" min="1">
-                    </div>
-                    <div class="form-group">
-                        <label>Precio Original ($) *</label>
-                        <input type="number" id="costPrecioOrig" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>Precio Final ($) *</label>
-                        <input type="number" id="costPrecioFinal" step="0.01">
-                    </div>
-                    <div class="form-group full">
-                        <label>Observaciones</label>
-                        <input type="text" id="costObservaciones" placeholder="Notas...">
-                    </div>
-                </div>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="addDescuento()">Guardar Descuento</button>
-                </div>
-            </div>
+            <p style="color: #666; font-size: 13px; margin-bottom: 20px;">
+                💡 Los descuentos se cargan en la app <strong>descuentos-pikey.html</strong> y se muestran aquí automáticamente.
+            </p>
 
             <div class="kpi-grid">
                 <div class="kpi-card real">
@@ -594,26 +552,18 @@
                     </div>
                     <div class="form-group">
                         <label>Tipo *</label>
-                        <select id="stockTipo">
+                        <select id="stockTipo" style="padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px;">
                             <option value="">-- Selecciona --</option>
                             <option value="herrajes">Herrajes</option>
                             <option value="insumos">Insumos</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Categoría</label>
-                        <input type="text" id="stockCategoria" placeholder="Ej: Tornillos, Tuercas">
+                        <label>Stock en $ *</label>
+                        <input type="number" id="stockValor" step="0.01" placeholder="Ej: 15000">
                     </div>
                     <div class="form-group">
-                        <label>Cantidad</label>
-                        <input type="number" id="stockCantidad">
-                    </div>
-                    <div class="form-group">
-                        <label>Precio Unitario ($)</label>
-                        <input type="number" id="stockPrecioUnit" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>Valor Dólar Mes</label>
+                        <label>Valor Dólar Mes *</label>
                         <input type="number" id="valorDolar" step="0.01" placeholder="Ej: 950.50">
                     </div>
                 </div>
@@ -639,6 +589,11 @@
                     <div class="kpi-label">Stock Total (USD)</div>
                     <div class="kpi-value" id="stockTotalUSD">USD $0</div>
                 </div>
+            </div>
+
+            <div class="chart-container" style="margin-bottom: 30px;">
+                <div class="chart-title">Historial de Stock Cargado</div>
+                <div id="stockTable"></div>
             </div>
 
             <div class="charts-grid">
@@ -732,53 +687,9 @@
         }
 
         // ============ SECCIÓN COSTOS ============
-        async function addDescuento() {
-            const fecha = document.getElementById('costFecha').value;
-            const tipo = document.getElementById('costTipo').value;
-            const proveedor = document.getElementById('costProveedor').value;
-            const articulo = document.getElementById('costArticulo').value;
-            const cantidad = parseInt(document.getElementById('costCantidad').value);
-            const precioOrig = parseFloat(document.getElementById('costPrecioOrig').value);
-            const precioFinal = parseFloat(document.getElementById('costPrecioFinal').value);
-            const observaciones = document.getElementById('costObservaciones').value;
-
-            if (!fecha || !tipo || !proveedor || !articulo || !cantidad || !precioOrig || !precioFinal) {
-                alert('Completa campos obligatorios');
-                return;
-            }
-
-            const beneficio = (precioOrig - precioFinal) * cantidad;
-
-            const { error } = await supabase.from('descuentos').insert([{
-                fecha,
-                tipo: 'descuento',
-                discount_type: tipo,
-                proveedor,
-                articulo,
-                cantidad,
-                precio_original: precioOrig,
-                precio_final: precioFinal,
-                beneficio,
-                observaciones,
-                completed: false
-            }]);
-
-            if (error) {
-                alert('Error: ' + error.message);
-                return;
-            }
-
-            alert('Descuento guardado');
-            document.getElementById('costFecha').value = '';
-            document.getElementById('costTipo').value = '';
-            document.getElementById('costProveedor').value = '';
-            document.getElementById('costArticulo').value = '';
-            document.getElementById('costCantidad').value = '';
-            document.getElementById('costPrecioOrig').value = '';
-            document.getElementById('costPrecioFinal').value = '';
-            document.getElementById('costObservaciones').value = '';
-            loadCostos();
-        }
+        // ============ SECCIÓN COSTOS ============
+        // Nota: Los descuentos se cargan desde descuentos-pikey.html
+        // Esta app solo LEE y MUESTRA esos descuentos
 
         async function loadCostos() {
             const month = document.getElementById('monthSelector').value;
@@ -1007,39 +918,50 @@
         async function addStock() {
             const mes = document.getElementById('stockMes').value;
             const tipo = document.getElementById('stockTipo').value;
-            if (!mes || !tipo) { alert('Completa campos'); return; }
-
-            const cantidad = parseInt(document.getElementById('stockCantidad').value);
-            const precioUnit = parseFloat(document.getElementById('stockPrecioUnit').value);
-            const valorPesos = cantidad * precioUnit;
+            const valorPesos = parseFloat(document.getElementById('stockValor').value);
             const valorDolar = parseFloat(document.getElementById('valorDolar').value);
-            const valorUSD = valorDolar ? valorPesos / valorDolar : 0;
+
+            if (!mes || !tipo || !valorPesos || !valorDolar) {
+                alert('Completa todos los campos obligatorios');
+                return;
+            }
+
+            const valorUSD = valorPesos / valorDolar;
 
             const { error } = await supabase.from('stock').insert([{
                 mes,
                 tipo,
-                categoria: document.getElementById('stockCategoria').value,
-                cantidad,
-                precio_unitario: precioUnit,
+                categoria: tipo,
+                cantidad: 0,
+                precio_unitario: 0,
                 stock_valor_pesos: valorPesos,
                 valor_dolar: valorDolar,
                 stock_valor_usd: valorUSD
             }]);
 
-            if (error) alert('Error: ' + error.message);
-            else {
-                alert('Stock registrado');
-                loadStock();
+            if (error) {
+                alert('Error: ' + error.message);
+                return;
             }
+
+            alert('Stock registrado');
+            document.getElementById('stockMes').value = '';
+            document.getElementById('stockTipo').value = '';
+            document.getElementById('stockValor').value = '';
+            document.getElementById('valorDolar').value = '';
+            loadStock();
         }
 
         async function loadStock() {
-            const { data } = await supabase.from('stock').select('*').order('mes');
+            const { data } = await supabase.from('stock').select('*').order('mes', { ascending: false });
             
             if (!data) {
                 console.log('No hay datos de stock');
                 data = [];
             }
+
+            // Mostrar tabla de stocks
+            loadStockTable(data);
 
             const last12Months = [];
             const today = new Date();
@@ -1066,6 +988,41 @@
             document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
 
             loadStockCharts(data || [], last12Months);
+        }
+
+        function loadStockTable(data) {
+            let html = '<table><thead><tr><th>Mes</th><th>Tipo</th><th>Stock ($)</th><th>Dólar</th><th>Stock (USD)</th><th>Acción</th></tr></thead><tbody>';
+            
+            if (data && data.length > 0) {
+                data.forEach(d => {
+                    const tipo = d.tipo === 'herrajes' ? '🔧 Herrajes' : '📦 Insumos';
+                    const stockUSD = d.stock_valor_pesos / (d.valor_dolar || 1);
+                    html += `<tr>
+                        <td>${d.mes}</td>
+                        <td>${tipo}</td>
+                        <td>$${formatNumber(d.stock_valor_pesos)}</td>
+                        <td>$${d.valor_dolar.toFixed(2)}</td>
+                        <td>USD $${formatNumber(stockUSD)}</td>
+                        <td><button class="btn-secondary" onclick="deleteStock('${d.id}')" style="padding: 6px 12px; font-size: 12px;">Eliminar</button></td>
+                    </tr>`;
+                });
+            } else {
+                html += '<tr><td colspan="6" class="no-data">Sin registros de stock</td></tr>';
+            }
+            html += '</tbody></table>';
+            document.getElementById('stockTable').innerHTML = html;
+        }
+
+        async function deleteStock(id) {
+            if (!confirm('¿Eliminar este registro de stock?')) return;
+
+            const { error } = await supabase.from('stock').delete().eq('id', id);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('Registro eliminado');
+                loadStock();
+            }
         }
 
         function loadStockCharts(data, last12Months) {

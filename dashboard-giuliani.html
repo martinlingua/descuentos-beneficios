@@ -1008,7 +1008,7 @@
 
         // ============ SECCIÓN PROVEEDORES ============
         async function loadProveedores() {
-            const { data } = await supabase.from('proveedores').select('*').eq('activo', true);
+            const { data } = await supabase.from('proveedores').select('*').eq('activo', true).order('nombre');
             const select = document.getElementById('proveedorSelect');
             select.innerHTML = '<option value="">-- Selecciona proveedor --</option>';
             data?.forEach(p => {

@@ -528,7 +528,7 @@
             </div>
 
             <div class="form-section">
-                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Evaluar Proveedor (Escala 1-10)</div>
+                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Evaluar Proveedor (Escala 1-5, Ponderado)</div>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Proveedor *</label>
@@ -537,24 +537,75 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Cumplimiento Entrega (1-10)</label>
-                        <input type="number" id="cumplimiento" min="1" max="10" value="8">
+                        <label>1. Calidad Entrega (1-5) [20%]</label>
+                        <select id="criterio1" required>
+                            <option value="">Selecciona</option>
+                            <option value="1">1 - Muy Malo</option>
+                            <option value="2">2 - Malo</option>
+                            <option value="3">3 - Regular</option>
+                            <option value="4">4 - Bueno</option>
+                            <option value="5">5 - Excelente</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Calidad (1-10)</label>
-                        <input type="number" id="calidad" min="1" max="10" value="8">
+                        <label>2. Evaluación Usuario (1-5) [20%]</label>
+                        <select id="criterio2" required>
+                            <option value="">Selecciona</option>
+                            <option value="1">1 - Muy Insatisfecho</option>
+                            <option value="2">2 - Insatisfecho</option>
+                            <option value="3">3 - Neutral</option>
+                            <option value="4">4 - Satisfecho</option>
+                            <option value="5">5 - Muy Satisfecho</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Precio Competitivo (1-10)</label>
-                        <input type="number" id="precio" min="1" max="10" value="8">
+                        <label>3. Cumplimiento Tiempo (1-5) [10%]</label>
+                        <select id="criterio3" required>
+                            <option value="">Selecciona</option>
+                            <option value="1">1 - Siempre Retrasado</option>
+                            <option value="2">2 - Frecuentemente Retrasado</option>
+                            <option value="3">3 - Ocasionalmente Retrasado</option>
+                            <option value="4">4 - Generalmente A Tiempo</option>
+                            <option value="5">5 - Siempre A Tiempo</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Cercanía (1-10)</label>
-                        <input type="number" id="cercania" min="1" max="10" value="8">
+                        <label>4. Reclamos (1-5) [10%]</label>
+                        <select id="criterio4" required>
+                            <option value="">Selecciona</option>
+                            <option value="1">1 - Muchos Reclamos</option>
+                            <option value="2">2 - Varios Reclamos</option>
+                            <option value="3">3 - Algunos Reclamos</option>
+                            <option value="4">4 - Pocos Reclamos</option>
+                            <option value="5">5 - Sin Reclamos</option>
+                        </select>
                     </div>
                     <div class="form-group">
-                        <label>Notas</label>
-                        <textarea id="notasProveedor" placeholder="Observaciones..."></textarea>
+                        <label>5. Conveniencia Económica (1-5) [30%]</label>
+                        <select id="criterio5" required>
+                            <option value="">Selecciona</option>
+                            <option value="1">1 - Muy Caro</option>
+                            <option value="2">2 - Caro</option>
+                            <option value="3">3 - Precio Justo</option>
+                            <option value="4">4 - Buen Precio</option>
+                            <option value="5">5 - Muy Buen Precio</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>6. Compra Local (Mendoza) [10%]</label>
+                        <select id="criterio6" required>
+                            <option value="">Selecciona</option>
+                            <option value="N/A">N/A - No Aplica</option>
+                            <option value="1">1 - Lejos</option>
+                            <option value="2">2 - Algo Lejos</option>
+                            <option value="3">3 - Moderadamente Cerca</option>
+                            <option value="4">4 - Cerca</option>
+                            <option value="5">5 - Muy Cerca</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>Notas / Observaciones</label>
+                        <textarea id="notasProveedor" placeholder="Detalles adicionales de la evaluación..." style="min-height: 80px;"></textarea>
                     </div>
                 </div>
                 <div class="button-group">
@@ -998,29 +1049,69 @@
             const prov_id = document.getElementById('proveedorSelect').value;
             if (!mes || !prov_id) { alert('Completa campos'); return; }
 
-            const promedio = (
-                parseInt(document.getElementById('cumplimiento').value) +
-                parseInt(document.getElementById('calidad').value) +
-                parseInt(document.getElementById('precio').value) +
-                parseInt(document.getElementById('cercania').value)
-            ) / 4;
+            // Obtener valores de los 6 criterios
+            const c1 = parseInt(document.getElementById('criterio1').value) || 0;
+            const c2 = parseInt(document.getElementById('criterio2').value) || 0;
+            const c3 = parseInt(document.getElementById('criterio3').value) || 0;
+            const c4 = parseInt(document.getElementById('criterio4').value) || 0;
+            const c5 = parseInt(document.getElementById('criterio5').value) || 0;
+            const c6 = document.getElementById('criterio6').value; // Puede ser N/A
 
+            // Calcular promedio ponderado
+            const promedio = calcularPromedioWeighted(c1, c2, c3, c4, c5, c6);
+
+            // Guardar en Supabase
             const { error } = await supabase.from('proveedor_scorecard').insert([{
                 proveedor_id: prov_id,
                 mes,
-                cumplimiento_entrega: parseInt(document.getElementById('cumplimiento').value),
-                calidad: parseInt(document.getElementById('calidad').value),
-                precio_competitivo: parseInt(document.getElementById('precio').value),
-                cercania: parseInt(document.getElementById('cercania').value),
-                promedio,
+                calidad_entrega: c1,
+                evaluacion_usuario: c2,
+                cumplimiento_tiempo: c3,
+                reclamos: c4,
+                conveniencia_economica: c5,
+                compra_local: c6 === 'N/A' ? null : parseInt(c6),
                 notas: document.getElementById('notasProveedor').value
             }]);
 
             if (error) alert('Error: ' + error.message);
             else {
                 alert('Evaluación guardada');
+                // Limpiar formulario
+                document.getElementById('criterio1').value = '';
+                document.getElementById('criterio2').value = '';
+                document.getElementById('criterio3').value = '';
+                document.getElementById('criterio4').value = '';
+                document.getElementById('criterio5').value = '';
+                document.getElementById('criterio6').value = '';
+                document.getElementById('notasProveedor').value = '';
                 loadScorecardTable();
             }
+        }
+
+        function calcularPromedioWeighted(c1, c2, c3, c4, c5, c6) {
+            // c6 puede ser null (N/A) o un número 1-5
+            const compraLocalNA = c6 === null || c6 === 'N/A';
+
+            if (compraLocalNA) {
+                // Si Compra Local es N/A, redistribuir el 10% entre los otros 5
+                // Nuevos pesos: 20/90, 20/90, 10/90, 10/90, 30/90
+                return (c1 * 0.222) + (c2 * 0.222) + (c3 * 0.111) + (c4 * 0.111) + (c5 * 0.333);
+            } else {
+                // Todos 6 criterios con sus pesos normales
+                return (c1 * 0.20) + (c2 * 0.20) + (c3 * 0.10) + (c4 * 0.10) + (c5 * 0.30) + (c6 * 0.10);
+            }
+        }
+
+        function getCalificacion(promedio) {
+            if (promedio >= 4.5) return 'CALIFICADO';
+            if (promedio >= 3.0) return 'CONDICIONAL';
+            return 'NO CALIFICADO';
+        }
+
+        function getColorCalificacion(promedio) {
+            if (promedio >= 4.5) return '#27ae60'; // Verde
+            if (promedio >= 3.0) return '#f39c12'; // Amarillo
+            return '#e74c3c'; // Naranja
         }
 
         async function editScorecard(id) {
@@ -1084,32 +1175,58 @@
                 .select('*')
                 .eq('mes', mes);
             
-            let html = '<table><thead><tr><th>Proveedor</th><th>Cumplimiento</th><th>Calidad</th><th>Precio</th><th>Cercanía</th><th>Promedio</th><th>Acciones</th></tr></thead><tbody>';
+            let html = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="background:#34495e; color:white;">
+                        <th style="padding:10px; text-align:left;">Proveedor</th>
+                        <th style="padding:10px; text-align:center;">Calidad</th>
+                        <th style="padding:10px; text-align:center;">Eval. Usuario</th>
+                        <th style="padding:10px; text-align:center;">Cump. Tiempo</th>
+                        <th style="padding:10px; text-align:center;">Reclamos</th>
+                        <th style="padding:10px; text-align:center;">Conv. Econ.</th>
+                        <th style="padding:10px; text-align:center;">Compra Local</th>
+                        <th style="padding:10px; text-align:center; background:#2c3e50;">Promedio</th>
+                        <th style="padding:10px; text-align:center; background:#2c3e50;">Calificación</th>
+                        <th style="padding:10px; text-align:center;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
             
-            if (scores?.length > 0) {
+            if (scores && scores.length > 0) {
                 // Obtener datos de proveedores
                 const { data: provs } = await supabase.from('proveedores').select('*');
                 const provMap = {};
                 provs?.forEach(p => { provMap[p.id] = p.nombre; });
 
-                scores.sort((a, b) => b.promedio - a.promedio).forEach(s => {
+                scores.sort((a, b) => {
+                    const promA = calcularPromedioWeighted(a.calidad_entrega, a.evaluacion_usuario, a.cumplimiento_tiempo, a.reclamos, a.conveniencia_economica, a.compra_local);
+                    const promB = calcularPromedioWeighted(b.calidad_entrega, b.evaluacion_usuario, b.cumplimiento_tiempo, b.reclamos, b.conveniencia_economica, b.compra_local);
+                    return promB - promA;
+                }).forEach(s => {
                     const pName = provMap[s.proveedor_id] || 'N/A';
-                    const badge = s.promedio >= 8 ? 'score-excellent' : s.promedio >= 7 ? 'score-good' : s.promedio >= 6 ? 'score-warning' : 'score-danger';
-                    html += `<tr>
-                        <td>${pName}</td>
-                        <td><span class="score-badge score-good">${s.cumplimiento_entrega}/10</span></td>
-                        <td><span class="score-badge score-good">${s.calidad}/10</span></td>
-                        <td><span class="score-badge score-good">${s.precio_competitivo}/10</span></td>
-                        <td><span class="score-badge score-good">${s.cercania}/10</span></td>
-                        <td><span class="score-badge ${badge}">${s.promedio.toFixed(1)}/10</span></td>
-                        <td>
-                            <button class="btn-secondary" onclick="editScorecard('${s.id}')" style="padding: 6px 12px; font-size: 12px;">Editar</button>
-                            <button class="btn-secondary" onclick="deleteScorecard('${s.id}')" style="padding: 6px 12px; font-size: 12px; margin-left: 5px;">Eliminar</button>
+                    const promedio = calcularPromedioWeighted(s.calidad_entrega, s.evaluacion_usuario, s.cumplimiento_tiempo, s.reclamos, s.conveniencia_economica, s.compra_local);
+                    const calificacion = getCalificacion(promedio);
+                    const color = getColorCalificacion(promedio);
+                    const c6Display = s.compra_local === null ? 'N/A' : s.compra_local;
+
+                    html += `<tr style="border-bottom:1px solid #ecf0f1;">
+                        <td style="padding:10px;">${pName}</td>
+                        <td style="padding:10px; text-align:center;">${s.calidad_entrega}</td>
+                        <td style="padding:10px; text-align:center;">${s.evaluacion_usuario}</td>
+                        <td style="padding:10px; text-align:center;">${s.cumplimiento_tiempo}</td>
+                        <td style="padding:10px; text-align:center;">${s.reclamos}</td>
+                        <td style="padding:10px; text-align:center;">${s.conveniencia_economica}</td>
+                        <td style="padding:10px; text-align:center;">${c6Display}</td>
+                        <td style="padding:10px; text-align:center; font-weight:600; background:#ecf0f1;">${promedio.toFixed(2)}</td>
+                        <td style="padding:10px; text-align:center; font-weight:600; color:white; background:${color}; border-radius:4px;">${calificacion}</td>
+                        <td style="padding:10px; text-align:center;">
+                            <button class="btn-secondary" onclick="editScorecard('${s.id}')" style="padding:6px 10px; font-size:11px;">Editar</button>
+                            <button class="btn-secondary" onclick="deleteScorecard('${s.id}')" style="padding:6px 10px; font-size:11px; margin-left:5px;">Eliminar</button>
                         </td>
                     </tr>`;
                 });
             } else {
-                html += '<tr><td colspan="7" class="no-data">Sin evaluaciones para este mes</td></tr>';
+                html += '<tr><td colspan="10" style="padding:20px; text-align:center; color:#7f8c8d;">Sin evaluaciones para este mes</td></tr>';
             }
             html += '</tbody></table>';
             document.getElementById('proveedoresTable').innerHTML = html;

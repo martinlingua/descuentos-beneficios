@@ -1318,6 +1318,8 @@
             }
             return window.evaluacionesPrevias[proveedorId];
         }
+
+        async function loadScorecardTable() {
             const mes = document.getElementById('scorecardMonth').value;
             const { data: scores } = await supabase
                 .from('proveedor_scorecard')

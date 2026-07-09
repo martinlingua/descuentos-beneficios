@@ -733,71 +733,112 @@
         let currentTab = 'costos';
 
         // ============ LOGIN ============
-        async function checkLogin() {
+        function checkLogin() {
+            console.log('checkLogin iniciado');
             const password = document.getElementById('passwordInput').value;
-            if (password === PASSWORD) {
+            console.log('Contraseña ingresada:', password ? 'sí' : 'no');
+            
+            if (password === 'comprasG2026') {
+                console.log('Contraseña correcta, iniciando dashboard...');
                 sessionStorage.setItem('loggedIn', 'true');
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
-                await initDashboard();
+                
+                try {
+                    console.log('Llamando initDashboard...');
+                    // No usar await aquí, deixar que initDashboard se ejecute en background
+                    initDashboard().catch(error => {
+                        console.error('Error en initDashboard:', error);
+                        alert('Error al cargar: ' + error.message);
+                    });
+                    console.log('initDashboard llamado');
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error: ' + error.message);
+                }
             } else {
+                console.log('Contraseña incorrecta');
                 alert('Contraseña incorrecta');
             }
         }
 
         async function initDashboard() {
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            document.getElementById('monthSelector').value = `${year}-${month}`;
-            document.getElementById('scorecardMonth').value = `${year}-${month}`;
-            document.getElementById('stockMes').value = `${year}-${month}`;
+            console.log('initDashboard: inicio');
             
-            // Agregar eventos para actualizar gráficos cuando cambian valores de meta
-            document.getElementById('metaPercentage').addEventListener('change', reloadMetaCharts);
-            document.getElementById('metaFixed').addEventListener('change', reloadMetaCharts);
-            
-            // Evento para cargar evaluaciones del mes anterior al cambiar mes
-            document.getElementById('scorecardMonth').addEventListener('change', loadEvaluacionesPrevias);
-            
-            // Evento para precarga automática cuando selecciona proveedor
-            document.getElementById('proveedorSelect').addEventListener('change', function() {
-                const evalPrevia = precargaEvaluacionPreviaProveedor(this.value);
-                if (evalPrevia) {
-                    // Precarga los valores en el formulario
-                    document.getElementById('criterio1').value = evalPrevia.calidad_entrega || '';
-                    document.getElementById('criterio2').value = evalPrevia.evaluacion_usuario || '';
-                    document.getElementById('criterio3').value = evalPrevia.cumplimiento_tiempo || '';
-                    document.getElementById('criterio4').value = evalPrevia.reclamos || '';
-                    document.getElementById('criterio5').value = evalPrevia.conveniencia_economica || '';
-                    document.getElementById('criterio6').value = evalPrevia.compra_local === null ? 'N/A' : (evalPrevia.compra_local || '');
-                    document.getElementById('notasProveedor').value = evalPrevia.notas || '';
-                    
-                    // Mostrar indicador
-                    const status = document.getElementById('statusPrecarga');
-                    if (status) {
-                        status.style.display = 'block';
-                        status.textContent = `✓ Datos precargados del mes anterior (${window.mesAnterior})`;
+            try {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                console.log('initDashboard: fecha actual', year, month);
+                
+                document.getElementById('monthSelector').value = `${year}-${month}`;
+                document.getElementById('scorecardMonth').value = `${year}-${month}`;
+                document.getElementById('stockMes').value = `${year}-${month}`;
+                console.log('initDashboard: selectores de mes configurados');
+                
+                // Agregar eventos para actualizar gráficos cuando cambian valores de meta
+                document.getElementById('metaPercentage').addEventListener('change', reloadMetaCharts);
+                document.getElementById('metaFixed').addEventListener('change', reloadMetaCharts);
+                console.log('initDashboard: event listeners de meta agregados');
+                
+                // Evento para cargar evaluaciones del mes anterior al cambiar mes
+                document.getElementById('scorecardMonth').addEventListener('change', loadEvaluacionesPrevias);
+                console.log('initDashboard: event listener de scorecard month agregado');
+                
+                // Evento para precarga automática cuando selecciona proveedor
+                document.getElementById('proveedorSelect').addEventListener('change', function() {
+                    const evalPrevia = precargaEvaluacionPreviaProveedor(this.value);
+                    if (evalPrevia) {
+                        document.getElementById('criterio1').value = evalPrevia.calidad_entrega || '';
+                        document.getElementById('criterio2').value = evalPrevia.evaluacion_usuario || '';
+                        document.getElementById('criterio3').value = evalPrevia.cumplimiento_tiempo || '';
+                        document.getElementById('criterio4').value = evalPrevia.reclamos || '';
+                        document.getElementById('criterio5').value = evalPrevia.conveniencia_economica || '';
+                        document.getElementById('criterio6').value = evalPrevia.compra_local === null ? 'N/A' : (evalPrevia.compra_local || '');
+                        document.getElementById('notasProveedor').value = evalPrevia.notas || '';
+                        
+                        const status = document.getElementById('statusPrecarga');
+                        if (status) {
+                            status.style.display = 'block';
+                            status.textContent = `✓ Datos precargados del mes anterior (${window.mesAnterior})`;
+                        }
+                    } else {
+                        document.getElementById('criterio1').value = '';
+                        document.getElementById('criterio2').value = '';
+                        document.getElementById('criterio3').value = '';
+                        document.getElementById('criterio4').value = '';
+                        document.getElementById('criterio5').value = '';
+                        document.getElementById('criterio6').value = '';
+                        document.getElementById('notasProveedor').value = '';
+                        
+                        const status = document.getElementById('statusPrecarga');
+                        if (status) status.style.display = 'none';
                     }
-                } else {
-                    // Limpiar campos si no hay datos previos
-                    document.getElementById('criterio1').value = '';
-                    document.getElementById('criterio2').value = '';
-                    document.getElementById('criterio3').value = '';
-                    document.getElementById('criterio4').value = '';
-                    document.getElementById('criterio5').value = '';
-                    document.getElementById('criterio6').value = '';
-                    document.getElementById('notasProveedor').value = '';
-                    
-                    const status = document.getElementById('statusPrecarga');
-                    if (status) status.style.display = 'none';
-                }
-            });
-            
-            await loadCostos();
-            await loadProveedores();
-            await loadStock();
-            await loadEvaluacionesPrevias();
+                });
+                console.log('initDashboard: event listener de proveedor agregado');
+                
+                console.log('initDashboard: cargando costos...');
+                await loadCostos();
+                console.log('initDashboard: costos cargados');
+                
+                console.log('initDashboard: cargando proveedores...');
+                await loadProveedores();
+                console.log('initDashboard: proveedores cargados');
+                
+                console.log('initDashboard: cargando stock...');
+                await loadStock();
+                console.log('initDashboard: stock cargado');
+                
+                console.log('initDashboard: cargando evaluaciones previas...');
+                await loadEvaluacionesPrevias();
+                console.log('initDashboard: evaluaciones previas cargadas');
+                
+                console.log('initDashboard: completado exitosamente');
+            } catch (error) {
+                console.error('Error en initDashboard:', error);
+                alert('Error al cargar dashboard: ' + error.message);
+                throw error;
+            }
         }
 
         // ============ NAVEGACIÓN PESTAÑAS ============
@@ -1708,11 +1749,13 @@
         }
 
         // Verificar login al cargar
-        window.addEventListener('load', async () => {
+        window.addEventListener('load', () => {
             if (sessionStorage.getItem('loggedIn')) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
-                await initDashboard();
+                initDashboard().catch(error => {
+                    console.error('Error al cargar dashboard:', error);
+                });
             }
         });
     </script>

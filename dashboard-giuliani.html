@@ -733,19 +733,19 @@
         let currentTab = 'costos';
 
         // ============ LOGIN ============
-        function checkLogin() {
+        async function checkLogin() {
             const password = document.getElementById('passwordInput').value;
             if (password === PASSWORD) {
                 sessionStorage.setItem('loggedIn', 'true');
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
-                initDashboard();
+                await initDashboard();
             } else {
                 alert('Contraseña incorrecta');
             }
         }
 
-        function initDashboard() {
+        async function initDashboard() {
             const today = new Date();
             const year = today.getFullYear();
             const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -794,10 +794,10 @@
                 }
             });
             
-            loadCostos();
-            loadProveedores();
-            loadStock();
-            loadEvaluacionesPrevias();
+            await loadCostos();
+            await loadProveedores();
+            await loadStock();
+            await loadEvaluacionesPrevias();
         }
 
         // ============ NAVEGACIÓN PESTAÑAS ============
@@ -1708,11 +1708,11 @@
         }
 
         // Verificar login al cargar
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             if (sessionStorage.getItem('loggedIn')) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
-                initDashboard();
+                await initDashboard();
             }
         });
     </script>

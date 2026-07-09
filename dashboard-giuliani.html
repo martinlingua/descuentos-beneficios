@@ -525,10 +525,14 @@
             <div class="month-selector">
                 <label>Mes Scorecard:</label>
                 <input type="month" id="scorecardMonth" value="">
+                <small style="color: #7f8c8d; display: block; margin-top: 5px;">💡 Al seleccionar un proveedor, se cargarán automáticamente sus evaluaciones del mes anterior</small>
             </div>
 
             <div class="form-section">
                 <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Evaluar Proveedor (Escala 1-5, Ponderado)</div>
+                <div id="statusPrecarga" style="display: none; background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; border: 1px solid #c3e6cb;">
+                    ✓ Datos precargados del mes anterior
+                </div>
                 <div class="form-grid">
                     <div class="form-group">
                         <label>Proveedor *</label>
@@ -753,9 +757,47 @@
             document.getElementById('metaPercentage').addEventListener('change', reloadMetaCharts);
             document.getElementById('metaFixed').addEventListener('change', reloadMetaCharts);
             
+            // Evento para cargar evaluaciones del mes anterior al cambiar mes
+            document.getElementById('scorecardMonth').addEventListener('change', loadEvaluacionesPrevias);
+            
+            // Evento para precarga automática cuando selecciona proveedor
+            document.getElementById('proveedorSelect').addEventListener('change', function() {
+                const evalPrevia = precargaEvaluacionPreviaProveedor(this.value);
+                if (evalPrevia) {
+                    // Precarga los valores en el formulario
+                    document.getElementById('criterio1').value = evalPrevia.calidad_entrega || '';
+                    document.getElementById('criterio2').value = evalPrevia.evaluacion_usuario || '';
+                    document.getElementById('criterio3').value = evalPrevia.cumplimiento_tiempo || '';
+                    document.getElementById('criterio4').value = evalPrevia.reclamos || '';
+                    document.getElementById('criterio5').value = evalPrevia.conveniencia_economica || '';
+                    document.getElementById('criterio6').value = evalPrevia.compra_local === null ? 'N/A' : (evalPrevia.compra_local || '');
+                    document.getElementById('notasProveedor').value = evalPrevia.notas || '';
+                    
+                    // Mostrar indicador
+                    const status = document.getElementById('statusPrecarga');
+                    if (status) {
+                        status.style.display = 'block';
+                        status.textContent = `✓ Datos precargados del mes anterior (${window.mesAnterior})`;
+                    }
+                } else {
+                    // Limpiar campos si no hay datos previos
+                    document.getElementById('criterio1').value = '';
+                    document.getElementById('criterio2').value = '';
+                    document.getElementById('criterio3').value = '';
+                    document.getElementById('criterio4').value = '';
+                    document.getElementById('criterio5').value = '';
+                    document.getElementById('criterio6').value = '';
+                    document.getElementById('notasProveedor').value = '';
+                    
+                    const status = document.getElementById('statusPrecarga');
+                    if (status) status.style.display = 'none';
+                }
+            });
+            
             loadCostos();
             loadProveedores();
             loadStock();
+            loadEvaluacionesPrevias();
         }
 
         // ============ NAVEGACIÓN PESTAÑAS ============
@@ -1057,11 +1099,7 @@
             const c5 = parseInt(document.getElementById('criterio5').value) || 0;
             const c6 = document.getElementById('criterio6').value; // Puede ser N/A
 
-            // Calcular promedio ponderado
-            const promedio = calcularPromedioWeighted(c1, c2, c3, c4, c5, c6);
-
-            // Guardar en Supabase
-            const { error } = await supabase.from('proveedor_scorecard').insert([{
+            const datosEvaluacion = {
                 proveedor_id: prov_id,
                 mes,
                 calidad_entrega: c1,
@@ -1071,11 +1109,35 @@
                 conveniencia_economica: c5,
                 compra_local: c6 === 'N/A' ? null : parseInt(c6),
                 notas: document.getElementById('notasProveedor').value
-            }]);
+            };
+
+            // Verificar si ya existe evaluación para este proveedor en este mes
+            const { data: existing } = await supabase
+                .from('proveedor_scorecard')
+                .select('id')
+                .eq('proveedor_id', prov_id)
+                .eq('mes', mes);
+
+            let error;
+            if (existing && existing.length > 0) {
+                // Actualizar
+                const { error: updateError } = await supabase
+                    .from('proveedor_scorecard')
+                    .update(datosEvaluacion)
+                    .eq('proveedor_id', prov_id)
+                    .eq('mes', mes);
+                error = updateError;
+            } else {
+                // Insertar
+                const { error: insertError } = await supabase
+                    .from('proveedor_scorecard')
+                    .insert([datosEvaluacion]);
+                error = insertError;
+            }
 
             if (error) alert('Error: ' + error.message);
             else {
-                alert('Evaluación guardada');
+                alert('Evaluación guardada ✓');
                 // Limpiar formulario
                 document.getElementById('criterio1').value = '';
                 document.getElementById('criterio2').value = '';
@@ -1084,6 +1146,9 @@
                 document.getElementById('criterio5').value = '';
                 document.getElementById('criterio6').value = '';
                 document.getElementById('notasProveedor').value = '';
+                document.getElementById('proveedorSelect').value = '';
+                const status = document.getElementById('statusPrecarga');
+                if (status) status.style.display = 'none';
                 loadScorecardTable();
             }
         }
@@ -1168,7 +1233,50 @@
             }
         }
 
-        async function loadScorecardTable() {
+        async function loadEvaluacionesPrevias() {
+            const mesActual = document.getElementById('scorecardMonth').value;
+            if (!mesActual) return;
+
+            // Calcular mes anterior
+            const [año, mes] = mesActual.split('-');
+            let mesAnterior;
+            if (mes === '01') {
+                mesAnterior = `${parseInt(año) - 1}-12`;
+            } else {
+                mesAnterior = `${año}-${String(parseInt(mes) - 1).padStart(2, '0')}`;
+            }
+
+            // Buscar evaluaciones del mes anterior
+            const { data: evalsPrevias } = await supabase
+                .from('proveedor_scorecard')
+                .select('*')
+                .eq('mes', mesAnterior);
+
+            if (evalsPrevias && evalsPrevias.length > 0) {
+                // Crear mapa de evaluaciones previas por proveedor
+                const mapPrevias = {};
+                evalsPrevias.forEach(e => {
+                    mapPrevias[e.proveedor_id] = e;
+                });
+
+                // Guardar en variable global para usar al agregar
+                window.evaluacionesPrevias = mapPrevias;
+                window.mesAnterior = mesAnterior;
+                
+                console.log(`✓ Evaluaciones del mes anterior (${mesAnterior}) cargadas`);
+            } else {
+                window.evaluacionesPrevias = null;
+            }
+
+            loadScorecardTable();
+        }
+
+        function precargaEvaluacionPreviaProveedor(proveedorId) {
+            if (!window.evaluacionesPrevias || !window.evaluacionesPrevias[proveedorId]) {
+                return null;
+            }
+            return window.evaluacionesPrevias[proveedorId];
+        }
             const mes = document.getElementById('scorecardMonth').value;
             const { data: scores } = await supabase
                 .from('proveedor_scorecard')

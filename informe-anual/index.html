@@ -3,74 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión Compras - Informe Anual</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <title>Gestión Compras - Informe</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f5f5; color: #333; }
-
         .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); display: flex; align-items: center; justify-content: center; z-index: 1000; }
         .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); text-align: center; max-width: 400px; }
         .login-box h1 { color: #1e3c72; margin: 10px 0; font-size: 28px; }
         .login-box input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin: 15px 0; font-size: 14px; }
         .login-box button { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
         .login-box button:hover { background: #229954; }
-
         .informe { max-width: 1200px; margin: 0 auto; padding: 20px; display: none; }
         .informe.visible { display: block; }
-
         .portada { background: white; padding: 60px 40px; text-align: center; margin-bottom: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .logo { width: 120px; height: 120px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 30px; color: white; font-size: 48px; font-weight: 700; }
         .portada h1 { font-size: 48px; color: #1e3c72; margin-bottom: 10px; }
-
         .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 30px 0; }
         .kpi-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-left: 5px solid #27ae60; }
         .kpi-card h3 { color: #7f8c8d; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 10px; }
-        .kpi-value { font-size: 32px; font-weight: 700; color: #1e3c72; margin-bottom: 5px; }
-
+        .kpi-value { font-size: 32px; font-weight: 700; color: #1e3c72; }
         .section { background: white; padding: 30px; margin: 30px 0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .section h2 { color: #1e3c72; font-size: 28px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 3px solid #27ae60; }
         .section h3 { color: #2c3e50; font-size: 18px; margin: 25px 0 15px 0; }
         .section p { line-height: 1.8; color: #555; margin-bottom: 15px; }
-
-        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 30px; margin: 25px 0; }
-        .chart-container { position: relative; height: 300px; background: #f9f9f9; padding: 20px; border-radius: 8px; }
-
         table { width: 100%; border-collapse: collapse; margin: 20px 0; }
         th { background: #1e3c72; color: white; padding: 12px; text-align: left; font-weight: 600; }
         td { padding: 12px; border-bottom: 1px solid #ecf0f1; }
         tr:hover { background: #f9f9f9; }
-
-        .form-group { margin: 15px 0; }
-        .form-group label { display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 600; }
-        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; }
         .btn { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
         .btn:hover { background: #229954; }
-
         .compliance-box { background: #d4edda; border-left: 5px solid #27ae60; padding: 20px; border-radius: 6px; margin: 20px 0; }
-
-        @media print {
-            .login-screen, .btn, .form-group input, .form-group textarea { display: none; }
-            body { background: white; }
-        }
+        @media print { .login-screen, .btn { display: none; } body { background: white; } }
     </style>
 </head>
 <body>
-    <!-- LOGIN -->
     <div class="login-screen" id="loginScreen">
         <div class="login-box">
             <div class="logo">G</div>
             <h1>Gestión Compras</h1>
             <p>Informe Anual 2025-2026</p>
             <input type="password" id="passwordInput" placeholder="Contraseña">
-            <button onclick="doLogin()">Acceder</button>
+            <button onclick="verificarLogin()">Acceder</button>
         </div>
     </div>
 
-    <!-- INFORME -->
     <div class="informe" id="informe">
-        <!-- PORTADA -->
         <div class="portada">
             <div class="logo">G</div>
             <h1>Gestión Compras</h1>
@@ -78,7 +56,6 @@
             <p style="color: #7f8c8d; font-size: 16px; margin-top: 20px;">Julio 2025 - Junio 2026</p>
         </div>
 
-        <!-- KPI CARDS -->
         <div class="kpi-grid">
             <div class="kpi-card">
                 <h3>Ahorro Total</h3>
@@ -89,8 +66,8 @@
                 <div class="kpi-value"><span id="kpiCump">0</span>%</div>
             </div>
             <div class="kpi-card">
-                <h3>Proveedores Nuevos</h3>
-                <div class="kpi-value"><span id="kpiNuevos">0</span></div>
+                <h3>Proveedores</h3>
+                <div class="kpi-value"><span id="kpiProv">0</span></div>
             </div>
             <div class="kpi-card">
                 <h3>Stock Reducido</h3>
@@ -98,219 +75,132 @@
             </div>
         </div>
 
-        <!-- SECCIÓN RESUMEN -->
         <div class="section">
             <h2>📊 Resumen Ejecutivo</h2>
             <p id="resumenText">Cargando datos...</p>
-            <button class="btn" onclick="alert('Edición en desarrollo')">✏️ Editar</button>
         </div>
 
-        <!-- SECCIÓN AHORROS -->
         <div class="section">
             <h2>💰 Análisis de Ahorros</h2>
-            <p>Desempeño en reducción de costos durante el período Julio 2025 - Junio 2026.</p>
-            <div class="charts-grid">
-                <div class="chart-container">
-                    <canvas id="chartAhorros"></canvas>
-                </div>
-            </div>
             <table id="tablaAhorros">
-                <thead>
-                    <tr><th>Concepto</th><th>Monto</th></tr>
-                </thead>
+                <thead><tr><th>Tipo</th><th>Monto ($)</th></tr></thead>
                 <tbody><tr><td colspan="2">Cargando...</td></tr></tbody>
             </table>
         </div>
 
-        <!-- SECCIÓN PROVEEDORES -->
         <div class="section">
             <h2>🤝 Análisis de Proveedores</h2>
-            <p>Evaluación y seguimiento de desempeño de proveedores.</p>
             <table id="tablaProveedores">
-                <thead>
-                    <tr><th>Métrica</th><th>Valor</th></tr>
-                </thead>
+                <thead><tr><th>Métrica</th><th>Valor</th></tr></thead>
                 <tbody><tr><td colspan="2">Cargando...</td></tr></tbody>
             </table>
-
             <h3>Proveedores Críticos</h3>
             <table id="tablaCriticos">
-                <thead>
-                    <tr><th>Proveedor</th><th>¿Crítico?</th><th>Razón</th></tr>
-                </thead>
+                <thead><tr><th>Proveedor</th><th>¿Crítico?</th></tr></thead>
+                <tbody><tr><td colspan="2">Cargando...</td></tr></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>📦 Análisis de Stock</h2>
+            <table id="tablaStock">
+                <thead><tr><th>Concepto</th><th>Julio 2025</th><th>Junio 2026</th></tr></thead>
                 <tbody><tr><td colspan="3">Cargando...</td></tr></tbody>
             </table>
         </div>
 
-        <!-- SECCIÓN STOCK -->
-        <div class="section">
-            <h2>📦 Análisis de Stock</h2>
-            <table id="tablaStock">
-                <thead>
-                    <tr><th>Concepto</th><th>Julio 2025</th><th>Junio 2026</th><th>Variación</th></tr>
-                </thead>
-                <tbody><tr><td colspan="4">Cargando...</td></tr></tbody>
-            </table>
-        </div>
-
-        <!-- SECCIÓN PROYECTOS -->
         <div class="section">
             <h2>🎯 Proyectos H2 2026</h2>
             <table id="tablaProyectos">
-                <thead>
-                    <tr><th>Proyecto</th><th>Meta</th><th>Inicio</th><th>Estado</th></tr>
-                </thead>
-                <tbody><tr><td colspan="4">Cargando...</td></tr></tbody>
+                <thead><tr><th>Proyecto</th><th>Meta</th><th>Inicio</th></tr></thead>
+                <tbody><tr><td colspan="3">Cargando...</td></tr></tbody>
             </table>
         </div>
 
-        <!-- SECCIÓN ISO -->
         <div class="section">
             <h2>✅ Cumplimiento ISO 9001</h2>
             <div class="compliance-box">
                 <h3>✓ Auditoría Realizada</h3>
                 <p><strong>Año:</strong> 2025</p>
                 <p><strong>No Conformidades:</strong> 0</p>
-                <p><strong>Estado:</strong> Certificación Vigente</p>
             </div>
-            <h3>Mejoras Implementadas</h3>
-            <ul style="margin-left: 20px; line-height: 2;">
-                <li>✓ Sistema de Gestión de Compras Integrado</li>
-                <li>✓ Evaluación Ponderada de Proveedores</li>
-                <li>✓ Control de Inventario Mejorado</li>
-                <li>✓ Trazabilidad Completa de Procesos</li>
-            </ul>
         </div>
 
-        <!-- FOOTER -->
-        <div style="text-align: center; padding: 40px; color: #7f8c8d; font-size: 12px;">
-            <p>Informe Anual Gestión Compras | Julio 2025 - Junio 2026</p>
+        <div style="text-align: center; padding: 40px; color: #7f8c8d;">
             <button class="btn" onclick="window.print()">🖨️ Imprimir/PDF</button>
         </div>
     </div>
 
     <script>
-        // CONSTANTES
+        const PASSWORD = "comprasG2026";
         const SUPABASE_URL = "https://hhjcfuawfyxbdkktkkmn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_BjcUhvUle3Q-0jopsh8lvQ_O9GjjVFS";
-        const PASSWORD = "comprasG2026";
+        
+        let supa = null;
 
-        // INICIALIZAR SUPABASE
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        // LOGIN
-        function doLogin() {
+        function verificarLogin() {
             const pwd = document.getElementById('passwordInput').value;
             if (pwd === PASSWORD) {
                 sessionStorage.setItem('loggedIn', 'true');
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('informe').classList.add('visible');
-                cargarDatos();
+                iniciar();
             } else {
                 alert('Contraseña incorrecta');
             }
         }
 
-        // CARGAR DATOS
-        async function cargarDatos() {
+        async function iniciar() {
             try {
-                console.log('Cargando datos...');
+                supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                
+                const { data: descuentos } = await supa.from('descuentos').select('*');
+                const { data: stock } = await supa.from('stock').select('*');
+                const { data: prov } = await supa.from('proveedores').select('*').eq('activo', true);
 
-                // Traer datos del dashboard
-                const { data: descuentos, error: errDesc } = await supabase.from('descuentos').select('*');
-                const { data: stock, error: errStock } = await supabase.from('stock').select('*');
-                const { data: proveedores, error: errProv } = await supabase.from('proveedores').select('*').eq('activo', true);
-
-                if (errDesc || errStock || errProv) {
-                    console.error('Errores en queries:', errDesc, errStock, errProv);
-                }
-
-                // CALCULAR AHORROS
-                const ahorroReal = descuentos?.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0) || 0;
-                const ahorroTotal = ahorroReal;
-
-                document.getElementById('kpiAhorro').textContent = ahorroTotal.toFixed(0);
+                // AHORRO
+                const ahorro = descuentos?.reduce((s, d) => s + (d.beneficio || 0), 0) || 0;
+                document.getElementById('kpiAhorro').textContent = ahorro.toFixed(0);
 
                 // STOCK
-                const stockInic = stock?.filter(s => s.mes?.startsWith('2025-07')).reduce((s, d) => s + (d.stock_valor_pesos || 0), 0) || 0;
-                const stockFin = stock?.filter(s => s.mes?.startsWith('2026-06')).reduce((s, d) => s + (d.stock_valor_pesos || 0), 0) || 0;
-                const redStock = stockInic > 0 ? ((stockInic - stockFin) / stockInic * 100) : 0;
-
-                document.getElementById('kpiStock').textContent = redStock.toFixed(1);
-
-                // PROVEEDORES
-                document.getElementById('kpiNuevos').textContent = proveedores?.length || 0;
+                const si = stock?.filter(s => s.mes?.startsWith('2025-07')).reduce((s, d) => s + (d.stock_valor_pesos || 0), 0) || 0;
+                const sf = stock?.filter(s => s.mes?.startsWith('2026-06')).reduce((s, d) => s + (d.stock_valor_pesos || 0), 0) || 0;
+                const red = si > 0 ? ((si - sf) / si * 100) : 0;
+                document.getElementById('kpiStock').textContent = red.toFixed(1);
+                document.getElementById('kpiProv').textContent = prov?.length || 0;
                 document.getElementById('kpiCump').textContent = '75';
 
-                // TABLA AHORROS
-                let htmlAhorros = `<tr><td>Ahorro Real</td><td>$${ahorroTotal.toFixed(0)}</td></tr>`;
-                document.getElementById('tablaAhorros').innerHTML = '<thead><tr><th>Tipo</th><th>Monto ($)</th></tr></thead><tbody>' + htmlAhorros + '</tbody>';
+                // TABLAS
+                document.getElementById('tablaAhorros').innerHTML = '<thead><tr><th>Tipo</th><th>Monto ($)</th></tr></thead><tbody><tr><td>Ahorro Real</td><td>$' + ahorro.toFixed(0) + '</td></tr></tbody>';
+                
+                document.getElementById('tablaStock').innerHTML = '<thead><tr><th>Concepto</th><th>Julio 2025</th><th>Junio 2026</th></tr></thead><tbody><tr><td>Stock Pesos</td><td>$' + si.toFixed(0) + '</td><td>$' + sf.toFixed(0) + '</td></tr></tbody>';
+                
+                let metricasHtml = '<thead><tr><th>Métrica</th><th>Valor</th></tr></thead><tbody><tr><td>Total Evaluados</td><td>' + (prov?.length || 0) + '</td></tr><tr><td>Activos</td><td>' + (prov?.length || 0) + '</td></tr></tbody>';
+                document.getElementById('tablaProveedores').innerHTML = metricasHtml;
 
-                // TABLA STOCK
-                let htmlStock = `
-                    <tr><td>Stock Total (Pesos)</td><td>$${stockInic.toFixed(0)}</td><td>$${stockFin.toFixed(0)}</td><td>${redStock.toFixed(1)}%</td></tr>
-                `;
-                document.getElementById('tablaStock').innerHTML = '<thead><tr><th>Concepto</th><th>Julio 2025</th><th>Junio 2026</th><th>Variación</th></tr></thead><tbody>' + htmlStock + '</tbody>';
-
-                // TABLA PROVEEDORES
-                let htmlMetrics = `
-                    <tr><td>Total Evaluados</td><td>${proveedores?.length || 0}</td></tr>
-                    <tr><td>Nuevos</td><td>${Math.ceil((proveedores?.length || 0) * 0.15)}</td></tr>
-                    <tr><td>Activos</td><td>${proveedores?.length || 0}</td></tr>
-                `;
-                document.getElementById('tablaProveedores').innerHTML = '<thead><tr><th>Métrica</th><th>Cantidad</th></tr></thead><tbody>' + htmlMetrics + '</tbody>';
-
-                // TABLA CRÍTICOS
-                let htmlCriticos = '';
-                if (proveedores && proveedores.length > 0) {
-                    htmlCriticos = proveedores.slice(0, 5).map(p => `
-                        <tr>
-                            <td>${p.nombre}</td>
-                            <td><input type="checkbox"></td>
-                            <td><input type="text" placeholder="Razón..." style="width: 100%;"></td>
-                        </tr>
-                    `).join('');
+                let criticosHtml = '<thead><tr><th>Proveedor</th><th>¿Crítico?</th></tr></thead><tbody>';
+                if (prov && prov.length > 0) {
+                    criticosHtml += prov.slice(0, 5).map(p => '<tr><td>' + p.nombre + '</td><td><input type="checkbox"></td></tr>').join('');
                 } else {
-                    htmlCriticos = '<tr><td colspan="3">Sin proveedores</td></tr>';
+                    criticosHtml += '<tr><td colspan="2">Sin proveedores</td></tr>';
                 }
-                document.getElementById('tablaCriticos').innerHTML = '<thead><tr><th>Proveedor</th><th>¿Crítico?</th><th>Razón</th></tr></thead><tbody>' + htmlCriticos + '</tbody>';
+                criticosHtml += '</tbody>';
+                document.getElementById('tablaCriticos').innerHTML = criticosHtml;
 
-                // TABLA PROYECTOS
-                let htmlProyectos = `
-                    <tr><td>Bajar stocks depósito</td><td>-15%</td><td>Jul 2026</td><td>Planificado</td></tr>
-                    <tr><td>Generar ahorros puntuales</td><td>$50.000</td><td>Jul 2026</td><td>Planificado</td></tr>
-                    <tr><td>Reducir costos generales</td><td>-5%</td><td>Ago 2026</td><td>Planificado</td></tr>
-                `;
-                document.getElementById('tablaProyectos').innerHTML = '<thead><tr><th>Proyecto</th><th>Meta</th><th>Inicio</th><th>Estado</th></tr></thead><tbody>' + htmlProyectos + '</tbody>';
+                let proyHtml = '<thead><tr><th>Proyecto</th><th>Meta</th><th>Inicio</th></tr></thead><tbody><tr><td>Bajar stocks</td><td>-15%</td><td>Jul 2026</td></tr><tr><td>Ahorros puntuales</td><td>$50k</td><td>Jul 2026</td></tr></tbody>';
+                document.getElementById('tablaProyectos').innerHTML = proyHtml;
 
-                // RESUMEN
-                document.getElementById('resumenText').innerHTML = `
-                    Durante el período Julio 2025 - Junio 2026, el sector de Compras ha logrado:
-                    <br><br>
-                    • <strong>Ahorro total de $${ahorroTotal.toFixed(0)}</strong> en costos operativos
-                    <br>
-                    • <strong>Reducción de stock en ${redStock.toFixed(1)}%</strong> mejorando rotación
-                    <br>
-                    • <strong>Implementación de sistema de gestión integrado</strong> para mayor control
-                    <br>
-                    • <strong>Evaluación ponderada de ${proveedores?.length || 0} proveedores</strong> activos
-                    <br>
-                    • <strong>0 no conformidades</strong> en auditoría ISO 9001
-                `;
-
-                console.log('✓ Datos cargados correctamente');
-            } catch (error) {
-                console.error('Error cargando datos:', error);
-                alert('Error: ' + error.message);
+                document.getElementById('resumenText').innerHTML = 'Durante julio 2025 - junio 2026 se logró: <br>• Ahorro total de $' + ahorro.toFixed(0) + '<br>• Reducción de stock en ' + red.toFixed(1) + '%<br>• Evaluación de ' + (prov?.length || 0) + ' proveedores<br>• 0 no conformidades ISO 9001';
+            } catch (e) {
+                alert('Error: ' + e.message);
             }
         }
 
-        // Verificar login al cargar página
         window.addEventListener('load', () => {
             if (sessionStorage.getItem('loggedIn')) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('informe').classList.add('visible');
-                cargarDatos();
+                iniciar();
             }
         });
     </script>

@@ -887,30 +887,45 @@
         }
 
         // ============ NAVEGACIÓN PESTAÑAS ============
-        function switchTab(tab) {
-            console.log('Switching to:', tab);
+        function switchTab(tabName) {
+            console.log('=== SWITCH TAB ===');
+            console.log('Activando:', tabName);
             
-            // Remover active de todos los botones
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            
-            // Ocultar todos los content
-            document.querySelectorAll('.content').forEach(c => {
-                c.style.display = 'none';
-                c.classList.remove('active');
+            // 1. Remover active de TODOS los botones
+            const botones = document.querySelectorAll('.tab-button');
+            console.log('Botones encontrados:', botones.length);
+            botones.forEach(btn => {
+                btn.classList.remove('active');
+                console.log('Removido active de botón');
             });
             
-            // Activar botón clickeado
-            event.target.classList.add('active');
+            // 2. Ocultar TODOS los divs de contenido
+            const divs = document.querySelectorAll('div[id="costos"], div[id="proveedores"], div[id="stock"], div[id="mejoras"]');
+            console.log('Divs de contenido encontrados:', divs.length);
+            divs.forEach(div => {
+                div.style.display = 'none';
+                div.classList.remove('active');
+                console.log('Ocultado:', div.id);
+            });
             
-            // Mostrar contenido
-            const contentDiv = document.getElementById(tab);
+            // 3. Activar el botón clickeado
+            if (event && event.target) {
+                event.target.classList.add('active');
+                console.log('Activado botón:', event.target.textContent);
+            }
+            
+            // 4. Mostrar el contenido correcto
+            const contentDiv = document.getElementById(tabName);
             if (contentDiv) {
                 contentDiv.style.display = 'block';
                 contentDiv.classList.add('active');
-                console.log('Mostrando:', tab);
+                console.log('✓ Mostrando:', tabName);
+                console.log('Display:', contentDiv.style.display);
+                console.log('HTML:', contentDiv.innerHTML.substring(0, 100));
             } else {
-                console.error('No existe div con id:', tab);
+                console.error('❌ NO EXISTE div con id:', tabName);
             }
+            console.log('=== FIN SWITCH TAB ===');
         }
 
         // ============ UTILIDADES ============
@@ -2104,6 +2119,26 @@
             if (sessionStorage.getItem('loggedIn')) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
+                
+                // Verificar que los divs existen y están bien
+                setTimeout(() => {
+                    console.log('=== VERIFICACIÓN POST-LOAD ===');
+                    const costos = document.getElementById('costos');
+                    const proveedores = document.getElementById('proveedores');
+                    const stock = document.getElementById('stock');
+                    const mejoras = document.getElementById('mejoras');
+                    
+                    console.log('costos existe:', !!costos, 'display:', costos?.style.display);
+                    console.log('proveedores existe:', !!proveedores, 'display:', proveedores?.style.display);
+                    console.log('stock existe:', !!stock, 'display:', stock?.style.display);
+                    console.log('mejoras existe:', !!mejoras, 'display:', mejoras?.style.display);
+                    
+                    // Forzar que costos se muestre
+                    if (costos) costos.style.display = 'block';
+                    
+                    console.log('=== FIN VERIFICACIÓN ===');
+                }, 500);
+                
                 initDashboard().catch(error => {
                     console.error('Error al cargar dashboard:', error);
                 });

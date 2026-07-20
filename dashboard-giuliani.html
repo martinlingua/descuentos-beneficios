@@ -1950,10 +1950,11 @@
 
                             <div style="margin-bottom: 15px;">
                                 ${pasos?.map((paso, idx) => `
-                                    <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-radius: 6px;">
-                                        <input type="checkbox" ${paso.completado ? 'checked' : ''} onchange="togglePaso('${paso.id}', '${mejora.id}')" style="cursor: pointer; margin-right: 10px;">
+                                    <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-radius: 6px; gap: 8px;">
+                                        <input type="checkbox" ${paso.completado ? 'checked' : ''} onchange="togglePaso('${paso.id}', '${mejora.id}')" style="cursor: pointer;">
                                         <span style="flex: 1; ${paso.completado ? 'text-decoration: line-through; color: #7f8c8d;' : ''}">${paso.titulo}</span>
                                         ${paso.completado ? `<span style="font-size: 11px; color: #27ae60;">${new Date(paso.fecha_completacion).toLocaleDateString('es-AR')}</span>` : ''}
+                                        <button class="btn-primary" onclick="eliminarPaso('${paso.id}', '${mejora.id}')" style="padding: 4px 8px; font-size: 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">✕</button>
                                     </div>
                                 `).join('')}
                             </div>
@@ -1971,13 +1972,30 @@
 
                 let htmlCompletadas = '';
                 for (const mejora of completadas) {
+                    const { data: pasos } = await supabase.from('pasos_mejora').select('*').eq('mejora_id', mejora.id).order('orden');
+                    
                     htmlCompletadas += `
                         <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #27ae60; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="color: #27ae60; margin: 0;">✅ ${mejora.titulo}</h4>
+                            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="expandirMejora('${mejora.id}')">
+                                <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                                    <span id="flecha-${mejora.id}" style="color: #27ae60; font-weight: bold;">▶</span>
+                                    <h4 style="color: #27ae60; margin: 0;">✅ ${mejora.titulo}</h4>
+                                </div>
                                 <span style="background: #d4edda; padding: 5px 10px; border-radius: 20px; color: #155724; font-size: 12px; font-weight: 600;">COMPLETADA</span>
                             </div>
                             <p style="color: #7f8c8d; font-size: 13px; margin-top: 10px;">Finalizada: ${new Date(mejora.fecha_completacion).toLocaleDateString('es-AR')}</p>
+                            
+                            <div id="detalles-${mejora.id}" style="display: none; margin-top: 15px; border-top: 1px solid #ecf0f1; padding-top: 15px;">
+                                <p style="color: #2c3e50; font-weight: 600; margin-bottom: 10px;">📋 Pasos completados:</p>
+                                ${pasos?.map(paso => `
+                                    <div style="padding: 10px; background: #f9f9f9; border-radius: 6px; margin-bottom: 8px; border-left: 3px solid #27ae60;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="color: #2c3e50;">✓ ${paso.titulo}</span>
+                                            <span style="font-size: 12px; color: #7f8c8d;">Completado: ${new Date(paso.fecha_completacion).toLocaleDateString('es-AR', {year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'})}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     `;
                 }
@@ -1986,6 +2004,19 @@
 
             } catch (e) {
                 console.error('Error en cargarMejoras:', e);
+            }
+        }
+
+        function expandirMejora(mejoraId) {
+            const detalles = document.getElementById(`detalles-${mejoraId}`);
+            const flecha = document.getElementById(`flecha-${mejoraId}`);
+            
+            if (detalles.style.display === 'none') {
+                detalles.style.display = 'block';
+                flecha.textContent = '▼';
+            } else {
+                detalles.style.display = 'none';
+                flecha.textContent = '▶';
             }
         }
 
@@ -2053,6 +2084,20 @@
 
             try {
                 await supabase.from('mejoras').delete().eq('id', mejoraId);
+                await cargarMejoras();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function eliminarPaso(pasoId, mejoraId) {
+            if (!confirm('¿Eliminar este paso?')) return;
+
+            try {
+                const { error } = await supabase.from('pasos_mejora').delete().eq('id', pasoId);
+                
+                if (error) throw error;
+
                 await cargarMejoras();
             } catch (e) {
                 alert('Error: ' + e.message);

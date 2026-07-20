@@ -3,131 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Compras - Giuliani</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Dashboard Compras</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
         
-        .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-        .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 50px rgba(0,0,0,0.3); text-align: center; max-width: 400px; }
-        .login-box h1 { color: #2c3e50; margin: 10px 0; }
-        .login-box input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin: 15px 0; }
-        .login-box button { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .login { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; z-index: 999; }
+        .login.hidden { display: none; }
+        
+        .login-box { background: white; padding: 50px; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center; width: 100%; max-width: 350px; }
+        .login-box h1 { color: #2c3e50; margin-bottom: 10px; font-size: 28px; }
+        .login-box p { color: #7f8c8d; margin-bottom: 30px; }
+        .login-box input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+        .login-box button { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 16px; }
         .login-box button:hover { background: #229954; }
-
-        #dashboard { display: none; background: white; margin: 20px; border-radius: 12px; box-shadow: 0 10px 50px rgba(0,0,0,0.2); }
-
-        header { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 30px; text-align: center; }
-        header h1 { font-size: 32px; margin-bottom: 5px; }
-
-        .tabs-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; background: #ecf0f1; border-bottom: 2px solid #bdc3c7; }
-        .tab-btn { padding: 15px; background: transparent; border: none; cursor: pointer; font-weight: 600; color: #7f8c8d; transition: all 0.3s; border-bottom: 3px solid transparent; }
-        .tab-btn:hover { background: rgba(255,255,255,0.5); }
-        .tab-btn.active { background: white; color: #27ae60; border-bottom: 3px solid #27ae60; }
-
-        .tabs-content { padding: 30px; }
-        .tab-panel { display: none; }
-        .tab-panel.show { display: block; }
-
-        .form-section { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
-        .form-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: #2c3e50; }
+        
+        .app { display: none; background: white; margin: 20px; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+        .app.visible { display: block; }
+        
+        .header { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { font-size: 32px; margin-bottom: 5px; }
+        .header p { font-size: 14px; opacity: 0.9; }
+        
+        .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; background: #ecf0f1; border-bottom: 2px solid #bdc3c7; }
+        .tab-button { padding: 15px; background: transparent; border: none; cursor: pointer; font-weight: 600; color: #7f8c8d; transition: all 0.3s; border-bottom: 3px solid transparent; }
+        .tab-button:hover { background: rgba(255,255,255,0.5); }
+        .tab-button.active { background: white; color: #27ae60; border-bottom-color: #27ae60; }
+        
+        .content-area { padding: 30px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .section { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .section h2 { color: #2c3e50; margin-bottom: 15px; font-size: 18px; }
+        .section p { color: #7f8c8d; line-height: 1.6; }
+        
+        .button { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .button:hover { background: #229954; }
+        
         .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 600; }
-        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
-        .form-group textarea { min-height: 80px; }
-        .btn { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
-        .btn:hover { background: #229954; }
-
-        .mejora-card { background: white; border-left: 5px solid #3498db; padding: 20px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .mejora-card.completada { border-left-color: #27ae60; background: #d4edda; }
-        .mejora-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .mejora-header h4 { color: #2c3e50; margin: 0; }
-        .mejora-counter { background: #ecf0f1; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .progress-bar { background: #ecf0f1; height: 8px; border-radius: 4px; margin: 10px 0; overflow: hidden; }
-        .progress-fill { background: linear-gradient(90deg, #27ae60, #3498db); height: 100%; transition: width 0.3s; }
-        .paso-item { display: flex; align-items: center; padding: 8px; margin: 5px 0; background: #f9f9f9; border-radius: 4px; }
-        .paso-item input { margin-right: 10px; cursor: pointer; }
-        .paso-item span { flex: 1; }
-        .paso-item.completado span { text-decoration: line-through; color: #999; }
-
-        @media (max-width: 1024px) { .tabs-container { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 768px) { .tabs-container { grid-template-columns: 1fr; } }
+        .form-group label { display: block; color: #2c3e50; font-weight: 600; margin-bottom: 5px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit; }
+        
+        @media (max-width: 768px) {
+            .tabs { grid-template-columns: 1fr; }
+            .login-box { padding: 30px; }
+            .header h1 { font-size: 24px; }
+        }
     </style>
 </head>
 <body>
     <!-- LOGIN -->
-    <div class="login-screen" id="loginScreen">
+    <div class="login" id="loginScreen">
         <div class="login-box">
             <h1>Dashboard Compras</h1>
             <p>Giuliani S.A.</p>
-            <input type="password" id="pwd" placeholder="Contraseña" onkeypress="if(event.key==='Enter') verificarLogin()">
-            <button onclick="verificarLogin()">Acceder</button>
+            <input type="password" id="pwd" placeholder="Contraseña" onkeypress="if(event.key==='Enter') login()">
+            <button onclick="login()">Acceder</button>
         </div>
     </div>
 
-    <!-- DASHBOARD -->
-    <div id="dashboard">
-        <header>
+    <!-- APP -->
+    <div class="app" id="app">
+        <div class="header">
             <h1>📊 Dashboard Compras & Operaciones</h1>
             <p>Giuliani S.A. - Análisis en tiempo real</p>
-        </header>
-
-        <!-- TABS -->
-        <div class="tabs-container">
-            <button class="tab-btn active" onclick="mostrarTab('costos')">💰 Costos</button>
-            <button class="tab-btn" onclick="mostrarTab('proveedores')">🤝 Proveedores</button>
-            <button class="tab-btn" onclick="mostrarTab('stock')">📦 Stock</button>
-            <button class="tab-btn" onclick="mostrarTab('mejoras')">🚀 Mejoras</button>
         </div>
 
-        <!-- CONTENIDO -->
-        <div class="tabs-content">
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('costos', this)">💰 Costos</button>
+            <button class="tab-button" onclick="showTab('proveedores', this)">🤝 Proveedores</button>
+            <button class="tab-button" onclick="showTab('stock', this)">📦 Stock</button>
+        </div>
+
+        <div class="content-area">
             <!-- COSTOS -->
-            <div id="costos" class="tab-panel show">
-                <h2 style="margin-bottom: 20px; color: #2c3e50;">💰 Sección Costos</h2>
-                <p style="color: #7f8c8d;">Contenido de costos aquí</p>
-                <p style="margin-top: 20px; color: #999; font-size: 13px;">Las otras secciones mantendrán sus datos cuando actualices desde la versión anterior.</p>
+            <div id="costos" class="tab-content active">
+                <div class="section">
+                    <h2>💰 Gestión de Costos</h2>
+                    <p>Módulo de costos y análisis de ahorros.</p>
+                    <p style="margin-top: 10px; color: #999; font-size: 13px;">
+                        Este módulo contiene gráficos, análisis de descuentos y comparativas de ahorro.
+                    </p>
+                </div>
             </div>
 
             <!-- PROVEEDORES -->
-            <div id="proveedores" class="tab-panel">
-                <h2 style="margin-bottom: 20px; color: #2c3e50;">🤝 Sección Proveedores</h2>
-                <p style="color: #7f8c8d;">Contenido de proveedores aquí</p>
+            <div id="proveedores" class="tab-content">
+                <div class="section">
+                    <h2>🤝 Gestión de Proveedores</h2>
+                    <p>Evaluación y gestión de proveedores con sistema de scoring ponderado.</p>
+                    <p style="margin-top: 10px; color: #999; font-size: 13px;">
+                        Sistema de evaluación con 6 criterios: Calidad de Entrega, Evaluación del Usuario, Cumplimiento de Tiempo, Reclamos, Conveniencia Económica y Compra Local.
+                    </p>
+                </div>
             </div>
 
             <!-- STOCK -->
-            <div id="stock" class="tab-panel">
-                <h2 style="margin-bottom: 20px; color: #2c3e50;">📦 Sección Stock</h2>
-                <p style="color: #7f8c8d;">Contenido de stock aquí</p>
-            </div>
-
-            <!-- MEJORAS -->
-            <div id="mejoras" class="tab-panel">
-                <h2 style="margin-bottom: 20px; color: #2c3e50;">🚀 Mejoras</h2>
-                
-                <div class="form-section">
-                    <div class="form-title">Agregar Nueva Mejora</div>
-                    <div class="form-group">
-                        <label>Título *</label>
-                        <input type="text" id="mejoraTitulo" placeholder="Ej: Automatizar proceso de compras">
-                    </div>
-                    <div class="form-group">
-                        <label>Descripción</label>
-                        <textarea id="mejoraDesc" placeholder="Describe la mejora..."></textarea>
-                    </div>
-                    <button class="btn" onclick="agregarMejora()">➕ Agregar Mejora</button>
-                </div>
-
-                <h3 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">📋 Mejoras en Proceso</h3>
-                <div id="mejorasEnProceso" style="min-height: 100px; padding: 20px; background: #f9f9f9; border-radius: 6px; color: #7f8c8d;">
-                    ⏳ Cargando...
-                </div>
-
-                <h3 style="color: #27ae60; margin-top: 30px; margin-bottom: 15px;">✅ Mejoras Completadas</h3>
-                <div id="mejorasCompletadas" style="min-height: 100px; padding: 20px; background: #f9f9f9; border-radius: 6px; color: #7f8c8d;">
-                    ⏳ Cargando...
+            <div id="stock" class="tab-content">
+                <div class="section">
+                    <h2>📦 Gestión de Stock</h2>
+                    <p>Control y análisis de inventario por categoría.</p>
+                    <p style="margin-top: 10px; color: #999; font-size: 13px;">
+                        Herrajes e Insumos con seguimiento en pesos y dólares.
+                    </p>
                 </div>
             </div>
         </div>
@@ -135,209 +114,35 @@
 
     <script>
         const PASSWORD = "comprasG2026";
-        const SUPABASE_URL = "https://hhjcfuawfyxbdkktkkmn.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_BjcUhvUle3Q-0jopsh8lvQ_O9GjjVFS";
-        
-        let supabase = null;
 
-        function verificarLogin() {
-            console.log('Verificando login...');
+        function login() {
             const pwd = document.getElementById('pwd').value;
-            console.log('Contraseña ingresada:', pwd);
-            console.log('Contraseña correcta:', PASSWORD);
             
             if (pwd === PASSWORD) {
-                console.log('✓ Contraseña correcta');
                 sessionStorage.setItem('loggedIn', 'true');
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('dashboard').style.display = 'block';
-                inicializar();
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('app').classList.add('visible');
             } else {
-                console.error('✗ Contraseña incorrecta');
                 alert('Contraseña incorrecta');
                 document.getElementById('pwd').value = '';
             }
         }
 
-        function mostrarTab(tab) {
-            console.log('Mostrando tab:', tab);
+        function showTab(tabName, button) {
+            // Remover active de todos los botones y contenidos
+            document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             
-            // Ocultar todos
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('show'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            
-            // Mostrar seleccionado
-            document.getElementById(tab).classList.add('show');
-            event.target.classList.add('active');
+            // Activar el seleccionado
+            button.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
         }
 
-        async function inicializar() {
-            try {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                console.log('✓ Supabase conectado');
-                await cargarMejoras();
-            } catch (e) {
-                console.error('Error en inicializar:', e);
-                console.log('Supabase puede no estar disponible, pero el dashboard seguirá funcionando');
-                // No mostrar error - el dashboard puede funcionar sin Supabase
-            }
-        }
-
-        async function agregarMejora() {
-            const titulo = document.getElementById('mejoraTitulo').value;
-            const desc = document.getElementById('mejoraDesc').value;
-
-            if (!titulo) {
-                alert('Ingresa un título');
-                return;
-            }
-
-            try {
-                const { error } = await supabase.from('mejoras').insert([{
-                    titulo,
-                    descripcion: desc,
-                    estado: 'en_proceso'
-                }]);
-
-                if (error) throw error;
-
-                alert('✓ Mejora agregada');
-                document.getElementById('mejoraTitulo').value = '';
-                document.getElementById('mejoraDesc').value = '';
-                await cargarMejoras();
-            } catch (e) {
-                alert('Error: ' + e.message);
-            }
-        }
-
-        async function cargarMejoras() {
-            try {
-                const { data: mejoras, error } = await supabase.from('mejoras').select('*').order('estado').order('created_at', { ascending: false });
-
-                if (error) {
-                    console.error('Error:', error);
-                    document.getElementById('mejorasEnProceso').innerHTML = '⚠️ Ejecuta el SQL en Supabase primero (SQL_MEJORAS.txt)';
-                    return;
-                }
-
-                const enProceso = mejoras?.filter(m => m.estado === 'en_proceso') || [];
-                const completadas = mejoras?.filter(m => m.estado === 'completada') || [];
-
-                let htmlProceso = '';
-                for (const mejora of enProceso) {
-                    const { data: pasos } = await supabase.from('pasos_mejora').select('*').eq('mejora_id', mejora.id).order('orden');
-                    const completados = pasos?.filter(p => p.completado).length || 0;
-                    const total = pasos?.length || 0;
-                    const pct = total > 0 ? (completados / total * 100) : 0;
-
-                    htmlProceso += `
-                        <div class="mejora-card">
-                            <div class="mejora-header">
-                                <h4>${mejora.titulo}</h4>
-                                <span class="mejora-counter">${completados}/${total}</span>
-                            </div>
-                            <p style="color: #7f8c8d; margin-bottom: 10px;">${mejora.descripcion || ''}</p>
-                            <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%"></div></div>
-                            ${pasos?.map(paso => `
-                                <div class="paso-item ${paso.completado ? 'completado' : ''}">
-                                    <input type="checkbox" ${paso.completado ? 'checked' : ''} onchange="togglePaso('${paso.id}', '${mejora.id}')">
-                                    <span>${paso.titulo}</span>
-                                    ${paso.completado ? `<span style="font-size: 11px; color: #27ae60;">${new Date(paso.fecha_completacion).toLocaleDateString('es-AR')}</span>` : ''}
-                                </div>
-                            `).join('')}
-                            <input type="text" id="paso-${mejora.id}" placeholder="Nuevo paso..." style="margin-top: 10px; width: 70%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            <button class="btn" onclick="agregarPaso('${mejora.id}')" style="margin-left: 5px; padding: 8px 15px;">➕</button>
-                            <button class="btn" onclick="eliminarMejora('${mejora.id}')" style="background: #e74c3c; padding: 8px 15px;">🗑️</button>
-                        </div>
-                    `;
-                }
-
-                let htmlCompletadas = '';
-                for (const mejora of completadas) {
-                    htmlCompletadas += `
-                        <div class="mejora-card completada">
-                            <h4 style="color: #27ae60;">✅ ${mejora.titulo}</h4>
-                            <p style="color: #666; font-size: 13px;">Finalizada: ${new Date(mejora.fecha_completacion).toLocaleDateString('es-AR')}</p>
-                        </div>
-                    `;
-                }
-
-                document.getElementById('mejorasEnProceso').innerHTML = htmlProceso || '<p style="color: #999;">Sin mejoras en proceso</p>';
-                document.getElementById('mejorasCompletadas').innerHTML = htmlCompletadas || '<p style="color: #999;">Sin mejoras completadas</p>';
-
-            } catch (e) {
-                console.error('Error en cargarMejoras:', e);
-            }
-        }
-
-        async function agregarPaso(mejoraId) {
-            const titulo = document.getElementById(`paso-${mejoraId}`).value;
-            if (!titulo) {
-                alert('Ingresa el título del paso');
-                return;
-            }
-
-            try {
-                const { data: pasos } = await supabase.from('pasos_mejora').select('orden').eq('mejora_id', mejoraId).order('orden', { ascending: false }).limit(1);
-                const orden = pasos?.length > 0 ? (pasos[0].orden + 1) : 0;
-
-                const { error } = await supabase.from('pasos_mejora').insert([{
-                    mejora_id: mejoraId,
-                    titulo,
-                    orden,
-                    completado: false
-                }]);
-
-                if (error) throw error;
-
-                document.getElementById(`paso-${mejoraId}`).value = '';
-                await cargarMejoras();
-            } catch (e) {
-                alert('Error: ' + e.message);
-            }
-        }
-
-        async function togglePaso(pasoId, mejoraId) {
-            try {
-                const { data: paso } = await supabase.from('pasos_mejora').select('completado').eq('id', pasoId).single();
-                const nuevo = !paso.completado;
-
-                await supabase.from('pasos_mejora').update({
-                    completado: nuevo,
-                    fecha_completacion: nuevo ? new Date().toISOString() : null
-                }).eq('id', pasoId);
-
-                // Verificar si todo está completo
-                const { data: pasos } = await supabase.from('pasos_mejora').select('completado').eq('mejora_id', mejoraId);
-                if (pasos?.every(p => p.completado) && pasos?.length > 0) {
-                    await supabase.from('mejoras').update({
-                        estado: 'completada',
-                        fecha_completacion: new Date().toISOString()
-                    }).eq('id', mejoraId);
-                }
-
-                await cargarMejoras();
-            } catch (e) {
-                alert('Error: ' + e.message);
-            }
-        }
-
-        async function eliminarMejora(mejoraId) {
-            if (confirm('¿Eliminar esta mejora?')) {
-                try {
-                    await supabase.from('mejoras').delete().eq('id', mejoraId);
-                    await cargarMejoras();
-                } catch (e) {
-                    alert('Error: ' + e.message);
-                }
-            }
-        }
-
+        // Verificar si ya está logueado
         window.addEventListener('load', () => {
             if (sessionStorage.getItem('loggedIn')) {
-                document.getElementById('loginScreen').style.display = 'none';
-                document.getElementById('dashboard').style.display = 'block';
-                inicializar();
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('app').classList.add('visible');
             }
         });
     </script>

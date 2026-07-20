@@ -416,6 +416,7 @@
             <button class="tab-button active" onclick="switchTab('costos')">💰 Costos</button>
             <button class="tab-button" onclick="switchTab('proveedores')">🤝 Proveedores</button>
             <button class="tab-button" onclick="switchTab('stock')">📦 Stock</button>
+            <button class="tab-button" onclick="switchTab('mejoras')">🚀 Mejoras</button>
         </div>
 
         <!-- SECCIÓN COSTOS -->
@@ -719,6 +720,38 @@
                 <div id="stockTable"></div>
             </div>
         </div>
+
+        <!-- SECCIÓN MEJORAS -->
+        <div id="mejoras" class="content">
+            <div class="form-section">
+                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Agregar Nueva Mejora</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Título de la Mejora *</label>
+                        <input type="text" id="mejoraTitulo" placeholder="Ej: Automatizar proceso de compras">
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea id="mejoraDescripcion" placeholder="Describe la mejora..." style="min-height: 80px;"></textarea>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="agregarMejora()">➕ Agregar Mejora</button>
+                </div>
+            </div>
+
+            <!-- LISTA DE MEJORAS EN PROCESO -->
+            <div style="margin-top: 30px;">
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: #2c3e50;">📋 Mejoras en Proceso</h3>
+                <div id="mejorasEnProceso" style="min-height: 100px; padding: 20px; color: #7f8c8d;">⏳ Cargando...</div>
+            </div>
+
+            <!-- LISTA DE MEJORAS COMPLETADAS -->
+            <div style="margin-top: 40px;">
+                <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: #27ae60;">✅ Mejoras Completadas</h3>
+                <div id="mejorasCompletadas" style="min-height: 100px; padding: 20px; color: #7f8c8d;">⏳ Cargando...</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -834,6 +867,10 @@
                 console.log('initDashboard: cargando evaluaciones previas...');
                 await loadEvaluacionesPrevias();
                 console.log('initDashboard: evaluaciones previas cargadas');
+                
+                console.log('initDashboard: cargando mejoras...');
+                await cargarMejoras();
+                console.log('initDashboard: mejoras cargadas');
                 
                 console.log('initDashboard: completado exitosamente');
             } catch (error) {
@@ -1847,6 +1884,178 @@
                 }
             } catch (e) {
                 console.error('Error creando gráficos comparativos:', e);
+            }
+        }
+
+        // ============ MÓDULO MEJORAS ============
+        async function agregarMejora() {
+            const titulo = document.getElementById('mejoraTitulo').value;
+            const descripcion = document.getElementById('mejoraDescripcion').value;
+
+            if (!titulo) {
+                alert('Ingresa un título para la mejora');
+                return;
+            }
+
+            try {
+                const { error } = await supabase.from('mejoras').insert([{
+                    titulo,
+                    descripcion,
+                    estado: 'en_proceso'
+                }]);
+
+                if (error) throw error;
+
+                alert('✓ Mejora agregada');
+                document.getElementById('mejoraTitulo').value = '';
+                document.getElementById('mejoraDescripcion').value = '';
+                await cargarMejoras();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function cargarMejoras() {
+            try {
+                const { data: mejoras, error } = await supabase.from('mejoras').select('*').order('estado').order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Error:', error);
+                    document.getElementById('mejorasEnProceso').innerHTML = '⚠️ Ejecuta el SQL en Supabase primero (SQL_MEJORAS.txt)';
+                    return;
+                }
+
+                const enProceso = mejoras?.filter(m => m.estado === 'en_proceso') || [];
+                const completadas = mejoras?.filter(m => m.estado === 'completada') || [];
+
+                let htmlProceso = '';
+                for (const mejora of enProceso) {
+                    const { data: pasos } = await supabase.from('pasos_mejora').select('*').eq('mejora_id', mejora.id).order('orden');
+                    
+                    const completados = pasos?.filter(p => p.completado).length || 0;
+                    const total = pasos?.length || 0;
+                    const porcentaje = total > 0 ? (completados / total * 100) : 0;
+
+                    htmlProceso += `
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #3498db; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h4 style="color: #2c3e50; margin: 0;">${mejora.titulo}</h4>
+                                <span style="background: #ecf0f1; padding: 5px 10px; border-radius: 20px; font-weight: 600; color: #7f8c8d; font-size: 12px;">${completados}/${total}</span>
+                            </div>
+                            <p style="color: #7f8c8d; font-size: 13px; margin-bottom: 10px;">${mejora.descripcion || 'Sin descripción'}</p>
+                            
+                            <div style="background: #ecf0f1; height: 8px; border-radius: 4px; margin-bottom: 15px; overflow: hidden;">
+                                <div style="background: linear-gradient(90deg, #27ae60 0%, #3498db 100%); height: 100%; width: ${porcentaje}%; transition: width 0.3s;"></div>
+                            </div>
+
+                            <div style="margin-bottom: 15px;">
+                                ${pasos?.map((paso, idx) => `
+                                    <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-radius: 6px;">
+                                        <input type="checkbox" ${paso.completado ? 'checked' : ''} onchange="togglePaso('${paso.id}', '${mejora.id}')" style="cursor: pointer; margin-right: 10px;">
+                                        <span style="flex: 1; ${paso.completado ? 'text-decoration: line-through; color: #7f8c8d;' : ''}">${paso.titulo}</span>
+                                        ${paso.completado ? `<span style="font-size: 11px; color: #27ae60;">${new Date(paso.fecha_completacion).toLocaleDateString('es-AR')}</span>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="nuevoPaso-${mejora.id}" placeholder="Nuevo paso..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                                <button class="btn-primary" onclick="agregarPaso('${mejora.id}')" style="padding: 8px 15px; font-size: 13px;">➕</button>
+                                <button class="btn-primary" onclick="eliminarMejora('${mejora.id}')" style="padding: 8px 15px; font-size: 13px; background: #e74c3c;">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('mejorasEnProceso').innerHTML = htmlProceso || '<p style="color: #999;">Sin mejoras en proceso</p>';
+
+                let htmlCompletadas = '';
+                for (const mejora of completadas) {
+                    htmlCompletadas += `
+                        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #27ae60; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h4 style="color: #27ae60; margin: 0;">✅ ${mejora.titulo}</h4>
+                                <span style="background: #d4edda; padding: 5px 10px; border-radius: 20px; color: #155724; font-size: 12px; font-weight: 600;">COMPLETADA</span>
+                            </div>
+                            <p style="color: #7f8c8d; font-size: 13px; margin-top: 10px;">Finalizada: ${new Date(mejora.fecha_completacion).toLocaleDateString('es-AR')}</p>
+                        </div>
+                    `;
+                }
+
+                document.getElementById('mejorasCompletadas').innerHTML = htmlCompletadas || '<p style="color: #999;">Sin mejoras completadas aún</p>';
+
+            } catch (e) {
+                console.error('Error en cargarMejoras:', e);
+            }
+        }
+
+        async function agregarPaso(mejoraId) {
+            const titulo = document.getElementById(`nuevoPaso-${mejoraId}`).value;
+
+            if (!titulo) {
+                alert('Ingresa un título para el paso');
+                return;
+            }
+
+            try {
+                const { data: pasos } = await supabase.from('pasos_mejora').select('orden').eq('mejora_id', mejoraId).order('orden', { ascending: false }).limit(1);
+                const nuevoOrden = pasos?.length > 0 ? (pasos[0].orden + 1) : 0;
+
+                const { error } = await supabase.from('pasos_mejora').insert([{
+                    mejora_id: mejoraId,
+                    titulo,
+                    orden: nuevoOrden,
+                    completado: false
+                }]);
+
+                if (error) throw error;
+
+                document.getElementById(`nuevoPaso-${mejoraId}`).value = '';
+                await cargarMejoras();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function togglePaso(pasoId, mejoraId) {
+            try {
+                const { data: paso } = await supabase.from('pasos_mejora').select('completado').eq('id', pasoId).single();
+                
+                const nuevoEstado = !paso.completado;
+                const fechaCompletacion = nuevoEstado ? new Date().toISOString() : null;
+
+                const { error } = await supabase.from('pasos_mejora').update({
+                    completado: nuevoEstado,
+                    fecha_completacion: fechaCompletacion
+                }).eq('id', pasoId);
+
+                if (error) throw error;
+
+                // Verificar si todos los pasos están completos
+                const { data: pasos } = await supabase.from('pasos_mejora').select('completado').eq('mejora_id', mejoraId);
+                const todosCompletos = pasos?.every(p => p.completado) && pasos?.length > 0;
+
+                if (todosCompletos) {
+                    await supabase.from('mejoras').update({
+                        estado: 'completada',
+                        fecha_completacion: new Date().toISOString()
+                    }).eq('id', mejoraId);
+                }
+
+                await cargarMejoras();
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function eliminarMejora(mejoraId) {
+            if (!confirm('¿Eliminar esta mejora y todos sus pasos?')) return;
+
+            try {
+                await supabase.from('mejoras').delete().eq('id', mejoraId);
+                await cargarMejoras();
+            } catch (e) {
+                alert('Error: ' + e.message);
             }
         }
 

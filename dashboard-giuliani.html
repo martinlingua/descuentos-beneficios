@@ -888,12 +888,29 @@
 
         // ============ NAVEGACIÓN PESTAÑAS ============
         function switchTab(tab) {
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+            console.log('Switching to:', tab);
             
+            // Remover active de todos los botones
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            
+            // Ocultar todos los content
+            document.querySelectorAll('.content').forEach(c => {
+                c.style.display = 'none';
+                c.classList.remove('active');
+            });
+            
+            // Activar botón clickeado
             event.target.classList.add('active');
-            document.getElementById(tab).classList.add('active');
-            currentTab = tab;
+            
+            // Mostrar contenido
+            const contentDiv = document.getElementById(tab);
+            if (contentDiv) {
+                contentDiv.style.display = 'block';
+                contentDiv.classList.add('active');
+                console.log('Mostrando:', tab);
+            } else {
+                console.error('No existe div con id:', tab);
+            }
         }
 
         // ============ UTILIDADES ============

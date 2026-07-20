@@ -51,7 +51,7 @@
 
         .tabs {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
             gap: 0;
             background: #f8f7f4;
             border-bottom: 1px solid #e0e0e0;
@@ -371,6 +371,12 @@
 
         .login-container button:hover {
             background: #229954;
+        }
+
+        @media (max-width: 1024px) {
+            .tabs {
+                grid-template-columns: 1fr 1fr;
+            }
         }
 
         @media (max-width: 768px) {
@@ -742,13 +748,13 @@
                 <!-- LISTA DE MEJORAS EN PROCESO -->
                 <div style="margin-top: 30px;">
                     <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: #2c3e50;">Mejoras en Proceso</h3>
-                    <div id="mejorasEnProceso"></div>
+                    <div id="mejorasEnProceso" style="padding: 20px; color: #7f8c8d;">⏳ Cargando...</div>
                 </div>
 
                 <!-- LISTA DE MEJORAS COMPLETADAS -->
                 <div style="margin-top: 40px;">
                     <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: #27ae60;">✅ Mejoras Completadas</h3>
-                    <div id="mejorasCompletadas"></div>
+                    <div id="mejorasCompletadas" style="padding: 20px; color: #7f8c8d;">⏳ Cargando...</div>
                 </div>
             </div>
         </div>
@@ -1917,7 +1923,18 @@
 
         async function loadMejoras() {
             try {
-                const { data: mejoras } = await supabase.from('mejoras').select('*').order('estado').order('created_at', { ascending: false });
+                console.log('loadMejoras: iniciando...');
+                
+                const { data: mejoras, error } = await supabase.from('mejoras').select('*').order('estado').order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Error consultando mejoras:', error);
+                    document.getElementById('mejorasEnProceso').innerHTML = '<p style="color: #e74c3c; padding: 20px; background: #fadbd8; border-radius: 6px;">⚠️ Error: Tablas no creadas. Ejecuta SQL en Supabase primero.</p>';
+                    document.getElementById('mejorasCompletadas').innerHTML = '';
+                    return;
+                }
+
+                console.log('Mejoras encontradas:', mejoras?.length || 0);
 
                 // Separar en proceso y completadas
                 const enProceso = mejoras?.filter(m => m.estado === 'en_proceso') || [];
@@ -1966,7 +1983,7 @@
                     `;
                 }
 
-                document.getElementById('mejorasEnProceso').innerHTML = htmlEnProceso || '<p style="color: #7f8c8d;">Sin mejoras en proceso</p>';
+                document.getElementById('mejorasEnProceso').innerHTML = htmlEnProceso || '<p style="color: #7f8c8d; padding: 20px;">Sin mejoras en proceso</p>';
 
                 // Mostrar mejoras completadas
                 let htmlCompletadas = '';
@@ -1982,10 +1999,12 @@
                     `;
                 }
 
-                document.getElementById('mejorasCompletadas').innerHTML = htmlCompletadas || '<p style="color: #7f8c8d;">Sin mejoras completadas aún</p>';
+                document.getElementById('mejorasCompletadas').innerHTML = htmlCompletadas || '<p style="color: #7f8c8d; padding: 20px;">Sin mejoras completadas aún</p>';
+                console.log('loadMejoras: completado');
 
             } catch (e) {
-                console.error('Error cargando mejoras:', e);
+                console.error('Error en loadMejoras:', e);
+                document.getElementById('mejorasEnProceso').innerHTML = '<p style="color: #e74c3c; padding: 20px; background: #fadbd8; border-radius: 6px;">❌ Error: ' + e.message + '</p>';
             }
         }
 

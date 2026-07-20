@@ -62,7 +62,7 @@
         <div class="login-box">
             <h1>Dashboard Compras</h1>
             <p>Giuliani S.A.</p>
-            <input type="password" id="pwd" placeholder="Contraseña">
+            <input type="password" id="pwd" placeholder="Contraseña" onkeypress="if(event.key==='Enter') verificarLogin()">
             <button onclick="verificarLogin()">Acceder</button>
         </div>
     </div>
@@ -141,13 +141,21 @@
         let supabase = null;
 
         function verificarLogin() {
-            if (document.getElementById('pwd').value === PASSWORD) {
+            console.log('Verificando login...');
+            const pwd = document.getElementById('pwd').value;
+            console.log('Contraseña ingresada:', pwd);
+            console.log('Contraseña correcta:', PASSWORD);
+            
+            if (pwd === PASSWORD) {
+                console.log('✓ Contraseña correcta');
                 sessionStorage.setItem('loggedIn', 'true');
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
                 inicializar();
             } else {
+                console.error('✗ Contraseña incorrecta');
                 alert('Contraseña incorrecta');
+                document.getElementById('pwd').value = '';
             }
         }
 
@@ -169,7 +177,9 @@
                 console.log('✓ Supabase conectado');
                 await cargarMejoras();
             } catch (e) {
-                console.error('Error:', e);
+                console.error('Error en inicializar:', e);
+                console.log('Supabase puede no estar disponible, pero el dashboard seguirá funcionando');
+                // No mostrar error - el dashboard puede funcionar sin Supabase
             }
         }
 

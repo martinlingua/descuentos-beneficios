@@ -3,1942 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Giuliani - Compras & Operaciones</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4"></script>
+    <title>Dashboard Compras - Giuliani</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; color: #333; }
+        
+        .login-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+        .login-box { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 50px rgba(0,0,0,0.3); text-align: center; max-width: 400px; }
+        .login-box h1 { color: #2c3e50; margin: 10px 0; }
+        .login-box input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; margin: 15px 0; }
+        .login-box button { width: 100%; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .login-box button:hover { background: #229954; }
 
-        body {
-            font-family: 'DM Sans', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
-            min-height: 100vh;
-            padding: 20px;
-        }
+        #dashboard { display: none; background: white; margin: 20px; border-radius: 12px; box-shadow: 0 10px 50px rgba(0,0,0,0.2); }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-        }
+        header { background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; padding: 30px; text-align: center; }
+        header h1 { font-size: 32px; margin-bottom: 5px; }
 
-        header {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
+        .tabs-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; background: #ecf0f1; border-bottom: 2px solid #bdc3c7; }
+        .tab-btn { padding: 15px; background: transparent; border: none; cursor: pointer; font-weight: 600; color: #7f8c8d; transition: all 0.3s; border-bottom: 3px solid transparent; }
+        .tab-btn:hover { background: rgba(255,255,255,0.5); }
+        .tab-btn.active { background: white; color: #27ae60; border-bottom: 3px solid #27ae60; }
 
-        header h1 {
-            font-size: 32px;
-            margin-bottom: 10px;
-        }
+        .tabs-content { padding: 30px; }
+        .tab-panel { display: none; }
+        .tab-panel.show { display: block; }
 
-        header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
+        .form-section { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 25px; }
+        .form-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: #2c3e50; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 600; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        .form-group textarea { min-height: 80px; }
+        .btn { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn:hover { background: #229954; }
 
-        .tabs {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr 1fr;
-            gap: 0;
-            background: #f8f7f4;
-            border-bottom: 1px solid #e0e0e0;
-        }
+        .mejora-card { background: white; border-left: 5px solid #3498db; padding: 20px; margin-bottom: 15px; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .mejora-card.completada { border-left-color: #27ae60; background: #d4edda; }
+        .mejora-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .mejora-header h4 { color: #2c3e50; margin: 0; }
+        .mejora-counter { background: #ecf0f1; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .progress-bar { background: #ecf0f1; height: 8px; border-radius: 4px; margin: 10px 0; overflow: hidden; }
+        .progress-fill { background: linear-gradient(90deg, #27ae60, #3498db); height: 100%; transition: width 0.3s; }
+        .paso-item { display: flex; align-items: center; padding: 8px; margin: 5px 0; background: #f9f9f9; border-radius: 4px; }
+        .paso-item input { margin-right: 10px; cursor: pointer; }
+        .paso-item span { flex: 1; }
+        .paso-item.completado span { text-decoration: line-through; color: #999; }
 
-        .tab-button {
-            padding: 18px 20px;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-size: 15px;
-            font-weight: 600;
-            color: #7f8c8d;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .tab-button:hover {
-            background: rgba(255, 255, 255, 0.5);
-        }
-
-        .tab-button.active {
-            color: #2c3e50;
-            background: white;
-        }
-
-        .tab-button.active::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: #27ae60;
-        }
-
-        .content {
-            padding: 30px;
-            display: none;
-        }
-
-        .content.active {
-            display: block;
-        }
-
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .kpi-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 12px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .kpi-card.real {
-            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
-        }
-
-        .kpi-card.proyecto {
-            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
-        }
-
-        .kpi-card.insumos {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-        }
-
-        .kpi-card.herrajes {
-            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
-        }
-
-        .kpi-label {
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            opacity: 0.9;
-            margin-bottom: 8px;
-        }
-
-        .kpi-value {
-            font-size: 28px;
-            font-weight: 700;
-        }
-
-        .charts-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .chart-container {
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #2c3e50;
-        }
-
-        .chart-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 15px;
-        }
-
-        .chart-canvas {
-            position: relative;
-            height: 300px;
-            margin-bottom: 20px;
-        }
-
-        .form-section {
-            background: #f8f7f4;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-        }
-
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .form-group label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 6px;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-family: 'DM Sans', sans-serif;
-            font-size: 13px;
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .button-group {
-            display: grid;
-            grid-template-columns: auto auto;
-            gap: 10px;
-        }
-
-        .btn-primary {
-            padding: 12px 24px;
-            background: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background: #229954;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            padding: 12px 24px;
-            background: #95a5a6;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-secondary:hover {
-            background: #7f8c8d;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            margin-top: 20px;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        th {
-            background: #2c3e50;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 13px;
-        }
-
-        tr:nth-child(even) {
-            background: #f9f9f9;
-        }
-
-        tr:hover {
-            background: #f0f0f0;
-        }
-
-        .score-badge {
-            display: inline-block;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .score-excellent {
-            background: #d4edda;
-            color: #27ae60;
-        }
-
-        .score-good {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
-        .score-warning {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .score-danger {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .month-selector {
-            margin-bottom: 20px;
-        }
-
-        .month-selector input {
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: 'DM Sans', sans-serif;
-        }
-
-        .no-data {
-            color: #999;
-            text-align: center;
-            padding: 40px;
-            font-style: italic;
-        }
-
-        .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            text-align: center;
-        }
-
-        .login-container h1 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-
-        .login-container input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: 'DM Sans', sans-serif;
-        }
-
-        .login-container button {
-            width: 100%;
-            padding: 12px;
-            background: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-        }
-
-        .login-container button:hover {
-            background: #229954;
-        }
-
-        @media (max-width: 1024px) {
-            .tabs {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .tabs {
-                grid-template-columns: 1fr;
-            }
-
-            .charts-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .kpi-grid {
-                grid-template-columns: 1fr;
-            }
-
-            header h1 {
-                font-size: 24px;
-            }
-
-            .content {
-                padding: 15px;
-            }
-        }
+        @media (max-width: 1024px) { .tabs-container { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { .tabs-container { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <!-- LOGIN -->
-    <div id="loginScreen" class="login-container">
-        <h1>🔐 Dashboard Giuliani</h1>
-        <input type="password" id="passwordInput" placeholder="Ingresa contraseña">
-        <button onclick="checkLogin()">Acceder</button>
+    <div class="login-screen" id="loginScreen">
+        <div class="login-box">
+            <h1>Dashboard Compras</h1>
+            <p>Giuliani S.A.</p>
+            <input type="password" id="pwd" placeholder="Contraseña">
+            <button onclick="verificarLogin()">Acceder</button>
+        </div>
     </div>
 
     <!-- DASHBOARD -->
-    <div id="dashboard" class="container" style="display: none;">
+    <div id="dashboard">
         <header>
             <h1>📊 Dashboard Compras & Operaciones</h1>
             <p>Giuliani S.A. - Análisis en tiempo real</p>
         </header>
 
-        <!-- PESTAÑAS -->
-        <div class="tabs">
-            <button class="tab-button active" onclick="switchTab('costos')">💰 Costos</button>
-            <button class="tab-button" onclick="switchTab('proveedores')">🤝 Proveedores</button>
-            <button class="tab-button" onclick="switchTab('stock')">📦 Stock</button>
-            <button class="tab-button" onclick="switchTab('mejoras')">🚀 Mejoras</button>
+        <!-- TABS -->
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="mostrarTab('costos')">💰 Costos</button>
+            <button class="tab-btn" onclick="mostrarTab('proveedores')">🤝 Proveedores</button>
+            <button class="tab-btn" onclick="mostrarTab('stock')">📦 Stock</button>
+            <button class="tab-btn" onclick="mostrarTab('mejoras')">🚀 Mejoras</button>
         </div>
 
-        <!-- SECCIÓN COSTOS -->
-        <div id="costos" class="content active">
-            <div class="month-selector">
-                <label>Mes:</label>
-                <input type="month" id="monthSelector" onchange="loadCostos()">
+        <!-- CONTENIDO -->
+        <div class="tabs-content">
+            <!-- COSTOS -->
+            <div id="costos" class="tab-panel show">
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">💰 Sección Costos</h2>
+                <p style="color: #7f8c8d;">Contenido de costos aquí</p>
+                <p style="margin-top: 20px; color: #999; font-size: 13px;">Las otras secciones mantendrán sus datos cuando actualices desde la versión anterior.</p>
             </div>
 
-            <p style="color: #666; font-size: 13px; margin-bottom: 20px;">
-                💡 Los descuentos se cargan en la app <strong>descuentos-pikey.html</strong> y se muestran aquí automáticamente.
-            </p>
-
-            <!-- CONFIGURACIÓN DE META -->
-            <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                <div style="margin-bottom: 12px;">
-                    <label style="font-weight: 600; color: #333; margin-bottom: 8px; display: block;">Configurar Metas para este mes:</label>
-                </div>
-
-                <div style="display: flex; gap: 20px; margin-bottom: 12px; flex-wrap: wrap;">
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <label style="font-weight: 600; color: #333;">Meta % Stock:</label>
-                        <input type="number" id="metaPercentage" value="5" min="0" max="100" step="0.5" style="width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <span style="color: #666; font-size: 13px;">%</span>
-                    </div>
-
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <label style="font-weight: 600; color: #333;">Meta Fija:</label>
-                        <input type="number" id="metaFixed" value="10000" min="0" step="100" style="width: 100px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <span style="color: #666; font-size: 13px;">$</span>
-                    </div>
-
-                    <button onclick="saveMeta()" style="padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">💾 Guardar Meta</button>
-                </div>
-
-                <div id="metaStatus" style="font-size: 12px; color: #666;">
-                    <span id="metaValue">Meta guardada: Cargando...</span>
-                </div>
+            <!-- PROVEEDORES -->
+            <div id="proveedores" class="tab-panel">
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">🤝 Sección Proveedores</h2>
+                <p style="color: #7f8c8d;">Contenido de proveedores aquí</p>
             </div>
 
-            <div class="kpi-grid">
-                <div class="kpi-card real">
-                    <div class="kpi-label">Ahorro Real + Beneficios</div>
-                    <div class="kpi-value" id="realTotal">$0</div>
-                </div>
-                <div class="kpi-card proyecto">
-                    <div class="kpi-label">Ahorro Proyecto</div>
-                    <div class="kpi-value" id="proyectoTotal">$0</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Beneficios (separado)</div>
-                    <div class="kpi-value" id="benefitsTotal">$0</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Ahorro Total</div>
-                    <div class="kpi-value" id="grandTotal">$0</div>
-                </div>
+            <!-- STOCK -->
+            <div id="stock" class="tab-panel">
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">📦 Sección Stock</h2>
+                <p style="color: #7f8c8d;">Contenido de stock aquí</p>
             </div>
 
-            <div class="charts-grid">
-                <div class="chart-container">
-                    <div class="chart-title">Evolución Ahorro - (Real + Beneficios) vs Proyecto (12 meses)</div>
-                    <div class="chart-canvas">
-                        <canvas id="costosChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-title">(Real + Beneficios) vs Meta (12 meses)</div>
-                    <div class="chart-canvas">
-                        <canvas id="typeChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- SECCIÓN PROVEEDORES -->
-        <div id="proveedores" class="content">
-            <div class="form-section">
-                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Agregar Proveedor</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Nombre *</label>
-                        <input type="text" id="provNombre" placeholder="Ej: Proveedor XYZ">
-                    </div>
-                    <div class="form-group">
-                        <label>Contacto</label>
-                        <input type="text" id="provContacto" placeholder="Persona de contacto">
-                    </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="provEmail" placeholder="correo@proveedor.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Teléfono</label>
-                        <input type="text" id="provTelefono" placeholder="Teléfono">
-                    </div>
-                    <div class="form-group">
-                        <label>Ciudad</label>
-                        <input type="text" id="provCiudad" placeholder="Mendoza">
-                    </div>
-                </div>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="addProveedor()">Guardar Proveedor</button>
-                </div>
-            </div>
-
-            <div class="month-selector">
-                <label>Mes Scorecard:</label>
-                <input type="month" id="scorecardMonth" value="">
-                <button onclick="copiarTodasEvaluacionesAnterior()" style="margin-left: 10px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">📋 Copiar todas del mes anterior</button>
-                <small style="color: #7f8c8d; display: block; margin-top: 5px;">💡 Al seleccionar un proveedor, se cargarán automáticamente sus evaluaciones del mes anterior</small>
-                <div id="statusCopiaTotal" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 13px; font-weight: 600;"></div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Evaluar Proveedor (Escala 1-5, Ponderado)</div>
-                <div id="statusPrecarga" style="display: none; background: #d4edda; color: #155724; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 13px; border: 1px solid #c3e6cb;">
-                    ✓ Datos precargados del mes anterior
-                </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Proveedor *</label>
-                        <select id="proveedorSelect">
-                            <option value="">-- Selecciona proveedor --</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>1. Calidad Entrega (1-5) [20%]</label>
-                        <select id="criterio1" required>
-                            <option value="">Selecciona</option>
-                            <option value="1">1 - Muy Malo</option>
-                            <option value="2">2 - Malo</option>
-                            <option value="3">3 - Regular</option>
-                            <option value="4">4 - Bueno</option>
-                            <option value="5">5 - Excelente</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>2. Evaluación Usuario (1-5) [20%]</label>
-                        <select id="criterio2" required>
-                            <option value="">Selecciona</option>
-                            <option value="1">1 - Muy Insatisfecho</option>
-                            <option value="2">2 - Insatisfecho</option>
-                            <option value="3">3 - Neutral</option>
-                            <option value="4">4 - Satisfecho</option>
-                            <option value="5">5 - Muy Satisfecho</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>3. Cumplimiento Tiempo (1-5) [10%]</label>
-                        <select id="criterio3" required>
-                            <option value="">Selecciona</option>
-                            <option value="1">1 - Siempre Retrasado</option>
-                            <option value="2">2 - Frecuentemente Retrasado</option>
-                            <option value="3">3 - Ocasionalmente Retrasado</option>
-                            <option value="4">4 - Generalmente A Tiempo</option>
-                            <option value="5">5 - Siempre A Tiempo</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>4. Reclamos (1-5) [10%]</label>
-                        <select id="criterio4" required>
-                            <option value="">Selecciona</option>
-                            <option value="1">1 - Muchos Reclamos</option>
-                            <option value="2">2 - Varios Reclamos</option>
-                            <option value="3">3 - Algunos Reclamos</option>
-                            <option value="4">4 - Pocos Reclamos</option>
-                            <option value="5">5 - Sin Reclamos</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>5. Conveniencia Económica (1-5) [30%]</label>
-                        <select id="criterio5" required>
-                            <option value="">Selecciona</option>
-                            <option value="1">1 - Muy Caro</option>
-                            <option value="2">2 - Caro</option>
-                            <option value="3">3 - Precio Justo</option>
-                            <option value="4">4 - Buen Precio</option>
-                            <option value="5">5 - Muy Buen Precio</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>6. Compra Local (Mendoza) [10%]</label>
-                        <select id="criterio6" required>
-                            <option value="">Selecciona</option>
-                            <option value="N/A">N/A - No Aplica</option>
-                            <option value="1">1 - Lejos</option>
-                            <option value="2">2 - Algo Lejos</option>
-                            <option value="3">3 - Moderadamente Cerca</option>
-                            <option value="4">4 - Cerca</option>
-                            <option value="5">5 - Muy Cerca</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="grid-column: 1 / -1;">
-                        <label>Notas / Observaciones</label>
-                        <textarea id="notasProveedor" placeholder="Detalles adicionales de la evaluación..." style="min-height: 80px;"></textarea>
-                    </div>
-                </div>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="addScorecard()">Guardar Evaluación</button>
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <div class="chart-title">Ranking de Proveedores (Mes Actual)</div>
-                <div id="proveedoresTable"></div>
-            </div>
-        </div>
-
-        <!-- SECCIÓN STOCK -->
-        <div id="stock" class="content">
-            <div class="form-section">
-                <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Registrar Stock</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Mes *</label>
-                        <input type="month" id="stockMes">
-                    </div>
-                    <div class="form-group">
-                        <label>Tipo *</label>
-                        <select id="stockTipo" style="padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 13px;">
-                            <option value="">-- Selecciona --</option>
-                            <option value="herrajes">Herrajes</option>
-                            <option value="insumos">Insumos</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Stock en $ *</label>
-                        <input type="number" id="stockValor" step="0.01" placeholder="Ej: 15000">
-                    </div>
-                    <div class="form-group">
-                        <label>Valor Dólar Mes *</label>
-                        <input type="number" id="valorDolar" step="0.01" placeholder="Ej: 950.50">
-                    </div>
-                </div>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="addStock()">Guardar Stock</button>
-                </div>
-            </div>
-
-            <!-- SELECTOR DE MES PARA KPIs -->
-            <div class="month-selector" style="margin-bottom: 25px;">
-                <label>Ver Stock de Mes:</label>
-                <input type="month" id="stockViewMes" onchange="loadStockForMonth()">
-            </div>
-
-            <!-- KPI CARDS -->
-            <div class="kpi-grid">
-                <div class="kpi-card herrajes">
-                    <div class="kpi-label">Stock Herrajes (Pesos)</div>
-                    <div class="kpi-value" id="herrajesTotal">$0</div>
-                </div>
-                <div class="kpi-card insumos">
-                    <div class="kpi-label">Stock Insumos (Pesos)</div>
-                    <div class="kpi-value" id="insumosTotal">$0</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Stock Total (Pesos)</div>
-                    <div class="kpi-value" id="stockTotalPesos">$0</div>
-                </div>
-                <div class="kpi-card">
-                    <div class="kpi-label">Stock Total (USD)</div>
-                    <div class="kpi-value" id="stockTotalUSD">USD $0</div>
-                </div>
-            </div>
-
-            <!-- GRÁFICOS COMPARATIVOS (AÑO PASADO VS ESTE AÑO) -->
-            <div class="charts-grid">
-                <div class="chart-container">
-                    <div class="chart-title">Comparativa Herrajes: Año Pasado vs Este Año (Pesos)</div>
-                    <div class="chart-canvas">
-                        <canvas id="herrajesCompChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-title">Comparativa Insumos: Año Pasado vs Este Año (Pesos)</div>
-                    <div class="chart-canvas">
-                        <canvas id="insumosCompChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <div class="charts-grid">
-                <div class="chart-container">
-                    <div class="chart-title">Comparativa Herrajes: Año Pasado vs Este Año (USD)</div>
-                    <div class="chart-canvas">
-                        <canvas id="herrajesCompUSDChart"></canvas>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-title">Comparativa Insumos: Año Pasado vs Este Año (USD)</div>
-                    <div class="chart-canvas">
-                        <canvas id="insumosCompUSDChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TABLA DE HISTÓRICO -->
-            <div class="chart-container" style="margin-bottom: 30px; margin-top: 30px;">
-                <div class="chart-title">Historial de Stock Cargado</div>
-                <div id="stockTable"></div>
-            </div>
-
-            <!-- SECCIÓN MEJORAS -->
-            <div id="mejoras" class="content">
+            <!-- MEJORAS -->
+            <div id="mejoras" class="tab-panel">
+                <h2 style="margin-bottom: 20px; color: #2c3e50;">🚀 Mejoras</h2>
+                
                 <div class="form-section">
-                    <div class="form-title" style="font-size: 16px; font-weight: 700; margin-bottom: 15px;">Agregar Nueva Mejora</div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label>Título de la Mejora *</label>
-                            <input type="text" id="mejoraTitulo" placeholder="Ej: Automatizar proceso de compras">
-                        </div>
-                        <div class="form-group">
-                            <label>Descripción</label>
-                            <textarea id="mejoraDescripcion" placeholder="Describe la mejora..." style="min-height: 80px;"></textarea>
-                        </div>
+                    <div class="form-title">Agregar Nueva Mejora</div>
+                    <div class="form-group">
+                        <label>Título *</label>
+                        <input type="text" id="mejoraTitulo" placeholder="Ej: Automatizar proceso de compras">
                     </div>
-                    <div class="button-group">
-                        <button class="btn-primary" onclick="agregarMejora()">➕ Agregar Mejora</button>
+                    <div class="form-group">
+                        <label>Descripción</label>
+                        <textarea id="mejoraDesc" placeholder="Describe la mejora..."></textarea>
                     </div>
+                    <button class="btn" onclick="agregarMejora()">➕ Agregar Mejora</button>
                 </div>
 
-                <!-- LISTA DE MEJORAS EN PROCESO -->
-                <div style="margin-top: 30px;">
-                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: #2c3e50;">Mejoras en Proceso</h3>
-                    <div id="mejorasEnProceso" style="padding: 20px; color: #7f8c8d;">⏳ Cargando...</div>
+                <h3 style="color: #2c3e50; margin-top: 30px; margin-bottom: 15px;">📋 Mejoras en Proceso</h3>
+                <div id="mejorasEnProceso" style="min-height: 100px; padding: 20px; background: #f9f9f9; border-radius: 6px; color: #7f8c8d;">
+                    ⏳ Cargando...
                 </div>
 
-                <!-- LISTA DE MEJORAS COMPLETADAS -->
-                <div style="margin-top: 40px;">
-                    <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; color: #27ae60;">✅ Mejoras Completadas</h3>
-                    <div id="mejorasCompletadas" style="padding: 20px; color: #7f8c8d;">⏳ Cargando...</div>
+                <h3 style="color: #27ae60; margin-top: 30px; margin-bottom: 15px;">✅ Mejoras Completadas</h3>
+                <div id="mejorasCompletadas" style="min-height: 100px; padding: 20px; background: #f9f9f9; border-radius: 6px; color: #7f8c8d;">
+                    ⏳ Cargando...
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // ============ CONFIGURACIÓN SUPABASE ============
+        const PASSWORD = "comprasG2026";
         const SUPABASE_URL = "https://hhjcfuawfyxbdkktkkmn.supabase.co";
         const SUPABASE_KEY = "sb_publishable_BjcUhvUle3Q-0jopsh8lvQ_O9GjjVFS";
         
-        // ============ INICIALIZAR OBJETO GRÁFICOS ============
-        const charts = {};
-        const PASSWORD = "comprasG2026";
+        let supabase = null;
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-        let currentTab = 'costos';
-
-        // ============ LOGIN ============
-        function checkLogin() {
-            console.log('checkLogin iniciado');
-            const password = document.getElementById('passwordInput').value;
-            console.log('Contraseña ingresada:', password ? 'sí' : 'no');
-            
-            if (password === 'comprasG2026') {
-                console.log('Contraseña correcta, iniciando dashboard...');
+        function verificarLogin() {
+            if (document.getElementById('pwd').value === PASSWORD) {
                 sessionStorage.setItem('loggedIn', 'true');
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
-                
-                try {
-                    console.log('Llamando initDashboard...');
-                    // No usar await aquí, deixar que initDashboard se ejecute en background
-                    initDashboard().catch(error => {
-                        console.error('Error en initDashboard:', error);
-                        alert('Error al cargar: ' + error.message);
-                    });
-                    console.log('initDashboard llamado');
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Error: ' + error.message);
-                }
+                inicializar();
             } else {
-                console.log('Contraseña incorrecta');
                 alert('Contraseña incorrecta');
             }
         }
 
-        async function initDashboard() {
-            console.log('initDashboard: inicio');
+        function mostrarTab(tab) {
+            console.log('Mostrando tab:', tab);
             
+            // Ocultar todos
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('show'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            
+            // Mostrar seleccionado
+            document.getElementById(tab).classList.add('show');
+            event.target.classList.add('active');
+        }
+
+        async function inicializar() {
             try {
-                const today = new Date();
-                const year = today.getFullYear();
-                const month = String(today.getMonth() + 1).padStart(2, '0');
-                console.log('initDashboard: fecha actual', year, month);
-                
-                document.getElementById('monthSelector').value = `${year}-${month}`;
-                document.getElementById('scorecardMonth').value = `${year}-${month}`;
-                document.getElementById('stockMes').value = `${year}-${month}`;
-                console.log('initDashboard: selectores de mes configurados');
-                
-                // Agregar eventos para actualizar gráficos cuando cambian valores de meta
-                document.getElementById('metaPercentage').addEventListener('change', reloadMetaCharts);
-                document.getElementById('metaFixed').addEventListener('change', reloadMetaCharts);
-                console.log('initDashboard: event listeners de meta agregados');
-                
-                // Evento para cargar evaluaciones del mes anterior al cambiar mes
-                document.getElementById('scorecardMonth').addEventListener('change', loadEvaluacionesPrevias);
-                console.log('initDashboard: event listener de scorecard month agregado');
-                
-                // Evento para precarga automática cuando selecciona proveedor
-                document.getElementById('proveedorSelect').addEventListener('change', function() {
-                    const evalPrevia = precargaEvaluacionPreviaProveedor(this.value);
-                    if (evalPrevia) {
-                        document.getElementById('criterio1').value = evalPrevia.calidad_entrega || '';
-                        document.getElementById('criterio2').value = evalPrevia.evaluacion_usuario || '';
-                        document.getElementById('criterio3').value = evalPrevia.cumplimiento_tiempo || '';
-                        document.getElementById('criterio4').value = evalPrevia.reclamos || '';
-                        document.getElementById('criterio5').value = evalPrevia.conveniencia_economica || '';
-                        document.getElementById('criterio6').value = evalPrevia.compra_local === null ? 'N/A' : (evalPrevia.compra_local || '');
-                        document.getElementById('notasProveedor').value = evalPrevia.notas || '';
-                        
-                        const status = document.getElementById('statusPrecarga');
-                        if (status) {
-                            status.style.display = 'block';
-                            status.textContent = `✓ Datos precargados del mes anterior (${window.mesAnterior})`;
-                        }
-                    } else {
-                        document.getElementById('criterio1').value = '';
-                        document.getElementById('criterio2').value = '';
-                        document.getElementById('criterio3').value = '';
-                        document.getElementById('criterio4').value = '';
-                        document.getElementById('criterio5').value = '';
-                        document.getElementById('criterio6').value = '';
-                        document.getElementById('notasProveedor').value = '';
-                        
-                        const status = document.getElementById('statusPrecarga');
-                        if (status) status.style.display = 'none';
-                    }
-                });
-                console.log('initDashboard: event listener de proveedor agregado');
-                
-                console.log('initDashboard: cargando costos...');
-                await loadCostos();
-                console.log('initDashboard: costos cargados');
-                
-                console.log('initDashboard: cargando proveedores...');
-                await loadProveedores();
-                console.log('initDashboard: proveedores cargados');
-                
-                console.log('initDashboard: cargando stock...');
-                await loadStock();
-                console.log('initDashboard: stock cargado');
-                
-                console.log('initDashboard: cargando evaluaciones previas...');
-                await loadEvaluacionesPrevias();
-                console.log('initDashboard: evaluaciones previas cargadas');
-                
-                console.log('initDashboard: cargando mejoras...');
-                await loadMejoras();
-                console.log('initDashboard: mejoras cargadas');
-                
-                console.log('initDashboard: completado exitosamente');
-            } catch (error) {
-                console.error('Error en initDashboard:', error);
-                alert('Error al cargar dashboard: ' + error.message);
-                throw error;
-            }
-        }
-
-        // ============ NAVEGACIÓN PESTAÑAS ============
-        function switchTab(tabName) {
-            console.log('=== SWITCH TAB ===');
-            console.log('Activando:', tabName);
-            
-            // 1. Remover active de TODOS los botones
-            const botones = document.querySelectorAll('.tab-button');
-            console.log('Botones encontrados:', botones.length);
-            botones.forEach(btn => {
-                btn.classList.remove('active');
-                console.log('Removido active de botón');
-            });
-            
-            // 2. Ocultar TODOS los divs de contenido
-            const divs = document.querySelectorAll('div[id="costos"], div[id="proveedores"], div[id="stock"], div[id="mejoras"]');
-            console.log('Divs de contenido encontrados:', divs.length);
-            divs.forEach(div => {
-                div.style.display = 'none';
-                div.classList.remove('active');
-                console.log('Ocultado:', div.id);
-            });
-            
-            // 3. Activar el botón clickeado
-            if (event && event.target) {
-                event.target.classList.add('active');
-                console.log('Activado botón:', event.target.textContent);
-            }
-            
-            // 4. Mostrar el contenido correcto
-            const contentDiv = document.getElementById(tabName);
-            if (contentDiv) {
-                contentDiv.style.display = 'block';
-                contentDiv.classList.add('active');
-                console.log('✓ Mostrando:', tabName);
-                console.log('Display:', contentDiv.style.display);
-                console.log('HTML:', contentDiv.innerHTML.substring(0, 100));
-            } else {
-                console.error('❌ NO EXISTE div con id:', tabName);
-            }
-            console.log('=== FIN SWITCH TAB ===');
-        }
-
-        // ============ UTILIDADES ============
-        function formatNumber(num) {
-            return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        }
-
-        function getMonthName(monthStr) {
-            const [year, month] = monthStr.split('-');
-            const date = new Date(year, parseInt(month) - 1);
-            return date.toLocaleDateString('es-AR', { month: 'short', year: '2-digit' });
-        }
-
-        // ============ SECCIÓN COSTOS ============
-        // ============ SECCIÓN COSTOS ============
-        // Nota: Los descuentos se cargan desde descuentos-pikey.html
-        // Esta app solo LEE y MUESTRA esos descuentos
-
-        async function loadCostos() {
-            const month = document.getElementById('monthSelector').value;
-            const { data: descuentos } = await supabase
-                .from('descuentos')
-                .select('*')
-                .like('fecha', `${month}%`);
-
-            const real = descuentos.filter(d => d.tipo === 'descuento' && d.discount_type === 'real').reduce((sum, d) => sum + (d.beneficio || 0), 0);
-            const proyecto = descuentos.filter(d => d.tipo === 'descuento' && d.discount_type === 'proyecto').reduce((sum, d) => sum + (d.beneficio || 0), 0);
-            const benefits = descuentos.filter(d => d.tipo === 'beneficio').reduce((sum, d) => sum + (d.benefit_total || 0), 0);
-
-            document.getElementById('realTotal').textContent = '$' + formatNumber(real);
-            document.getElementById('proyectoTotal').textContent = '$' + formatNumber(proyecto);
-            document.getElementById('benefitsTotal').textContent = '$' + formatNumber(benefits);
-            document.getElementById('grandTotal').textContent = '$' + formatNumber(real + proyecto + benefits);
-
-            // Cargar metas guardadas para este mes
-            await loadMetasForMonth(month);
-
-            loadCostosCharts(month);
-        }
-
-        async function loadMetasForMonth(month) {
-            const { data } = await supabase
-                .from('metas')
-                .select('*')
-                .eq('mes', month);
-
-            if (data && data.length > 0) {
-                document.getElementById('metaPercentage').value = data[0].meta_porcentaje || 5;
-                document.getElementById('metaFixed').value = data[0].meta_fija || 10000;
-                document.getElementById('metaStatus').innerHTML = `<span style="color: #27ae60; font-weight: 600;">✓ Meta guardada para ${month}</span>`;
-            } else {
-                document.getElementById('metaStatus').innerHTML = `<span style="color: #e74c3c;">⚠ Sin meta guardada. Completa y haz clic en "Guardar Meta"</span>`;
-            }
-        }
-
-        async function saveMeta() {
-            const month = document.getElementById('monthSelector').value;
-            const metaPercentage = parseFloat(document.getElementById('metaPercentage').value) || 5;
-            const metaFixed = parseFloat(document.getElementById('metaFixed').value) || 10000;
-
-            if (!month) { alert('Selecciona un mes'); return; }
-
-            // Intentar actualizar si existe, si no crear
-            const { data: existing } = await supabase
-                .from('metas')
-                .select('*')
-                .eq('mes', month);
-
-            if (existing && existing.length > 0) {
-                // Actualizar
-                const { error } = await supabase
-                    .from('metas')
-                    .update({ meta_porcentaje: metaPercentage, meta_fija: metaFixed })
-                    .eq('mes', month);
-                if (error) { alert('Error: ' + error.message); return; }
-            } else {
-                // Crear
-                const { error } = await supabase
-                    .from('metas')
-                    .insert([{ mes: month, meta_porcentaje: metaPercentage, meta_fija: metaFixed }]);
-                if (error) { alert('Error: ' + error.message); return; }
-            }
-
-            alert('Meta guardada para ' + month);
-            await loadMetasForMonth(month);
-            loadCostosCharts(month);
-        }
-
-        function reloadMetaCharts() {
-            const currentMonth = document.getElementById('monthSelector').value;
-            if (currentMonth) {
-                loadCostosCharts(currentMonth);
-            }
-        }
-
-        async function loadCostosCharts(currentMonth) {
-            const { data: descuentosData } = await supabase.from('descuentos').select('*').order('fecha');
-            const { data: stockData } = await supabase.from('stock').select('*').order('mes');
-            const { data: metasData } = await supabase.from('metas').select('*').order('mes');
-            
-            const last12Months = [];
-            const today = new Date(currentMonth + '-01');
-            for (let i = 11; i >= 0; i--) {
-                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                last12Months.push(`${d.getFullYear()}-${m}`);
-            }
-
-            // Calcular datos: REAL, (REAL + BENEFICIOS) y PROYECTO
-            const realData = last12Months.map(month => {
-                const monthData = descuentosData.filter(d => d.fecha.startsWith(month));
-                return monthData.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0);
-            });
-
-            const realBenefitsData = last12Months.map(month => {
-                const monthData = descuentosData.filter(d => d.fecha.startsWith(month));
-                const real = monthData.filter(d => d.discount_type === 'real').reduce((s, d) => s + (d.beneficio || 0), 0);
-                const benefits = monthData.filter(d => d.tipo === 'beneficio').reduce((s, d) => s + (d.benefit_total || 0), 0);
-                return real + benefits;
-            });
-
-            const proyectoData = last12Months.map(month => {
-                const monthData = descuentosData.filter(d => d.fecha.startsWith(month) && d.discount_type === 'proyecto');
-                return monthData.reduce((s, d) => s + (d.beneficio || 0), 0);
-            });
-
-            // Calcular META PORCENTAJE para cada mes (del stock anterior)
-            const metaPercentageData = last12Months.map((month, index) => {
-                if (index === 0) return 0;
-                
-                const metaMes = metasData ? metasData.find(m => m.mes === month) : null;
-                const metaPercent = metaMes ? (metaMes.meta_porcentaje || 5) : 5;
-                
-                const prevMonth = last12Months[index - 1];
-                const prevStockData = stockData.filter(d => d.mes === prevMonth);
-                const prevStockTotal = prevStockData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                return prevStockTotal * (metaPercent / 100);
-            });
-
-            // Calcular META FIJA para cada mes (de la tabla)
-            const metaFixedData = last12Months.map(month => {
-                const metaMes = metasData ? metasData.find(m => m.mes === month) : null;
-                return metaMes ? (metaMes.meta_fija || 10000) : 10000;
-            });
-
-            const labels = last12Months.map(getMonthName);
-
-            // Gráfico 1: Evolución Ahorro - (Real + Beneficios) vs Proyecto
-            if (charts.costosChart) charts.costosChart.destroy();
-            const ctx1 = document.getElementById('costosChart').getContext('2d');
-            charts.costosChart = new Chart(ctx1, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        {
-                            label: 'Real + Beneficios',
-                            data: realBenefitsData,
-                            borderColor: '#e74c3c',
-                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                            borderWidth: 3,
-                            fill: true,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Proyecto',
-                            data: proyectoData,
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            borderWidth: 3,
-                            fill: false,
-                            tension: 0.4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: true, position: 'top' } },
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-
-            // Gráfico 2: Real, Real+Beneficios vs Meta % y Meta Fija
-            if (charts.typeChart) charts.typeChart.destroy();
-            const ctx2 = document.getElementById('typeChart').getContext('2d');
-            charts.typeChart = new Chart(ctx2, {
-                type: 'line',
-                data: {
-                    labels,
-                    datasets: [
-                        {
-                            label: 'Real',
-                            data: realData,
-                            borderColor: '#9b59b6',
-                            backgroundColor: 'rgba(155, 89, 182, 0.1)',
-                            borderWidth: 3,
-                            fill: false,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Real + Beneficios',
-                            data: realBenefitsData,
-                            borderColor: '#e74c3c',
-                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
-                            borderWidth: 3,
-                            fill: false,
-                            tension: 0.4
-                        },
-                        {
-                            label: 'Meta % (Stock)',
-                            data: metaPercentageData,
-                            borderColor: '#f39c12',
-                            borderWidth: 2,
-                            fill: false,
-                            borderDash: [5, 5],
-                            tension: 0.4,
-                            pointRadius: 3
-                        },
-                        {
-                            label: 'Meta Fija ($)',
-                            data: metaFixedData,
-                            borderColor: '#16a085',
-                            borderWidth: 2,
-                            fill: false,
-                            borderDash: [5, 5],
-                            tension: 0.4,
-                            pointRadius: 3
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: true, position: 'top' } },
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-        }
-
-        // ============ SECCIÓN PROVEEDORES ============
-        async function loadProveedores() {
-            const { data } = await supabase.from('proveedores').select('*').eq('activo', true).order('nombre');
-            const select = document.getElementById('proveedorSelect');
-            select.innerHTML = '<option value="">-- Selecciona proveedor --</option>';
-            data?.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p.id;
-                opt.textContent = p.nombre;
-                select.appendChild(opt);
-            });
-            loadScorecardTable();
-        }
-
-        async function addProveedor() {
-            const nombre = document.getElementById('provNombre').value;
-            if (!nombre) { alert('Completa nombre'); return; }
-
-            const { error } = await supabase.from('proveedores').insert([{
-                nombre,
-                contacto: document.getElementById('provContacto').value,
-                email: document.getElementById('provEmail').value,
-                telefono: document.getElementById('provTelefono').value,
-                ciudad: document.getElementById('provCiudad').value
-            }]);
-
-            if (error) alert('Error: ' + error.message);
-            else {
-                alert('Proveedor agregado');
-                document.getElementById('provNombre').value = '';
-                document.getElementById('provContacto').value = '';
-                document.getElementById('provEmail').value = '';
-                document.getElementById('provTelefono').value = '';
-                document.getElementById('provCiudad').value = '';
-                loadProveedores();
-            }
-        }
-
-        async function addScorecard() {
-            const mes = document.getElementById('scorecardMonth').value;
-            const prov_id = document.getElementById('proveedorSelect').value;
-            if (!mes || !prov_id) { alert('Completa campos'); return; }
-
-            // Obtener valores de los 6 criterios
-            const c1 = parseInt(document.getElementById('criterio1').value) || 0;
-            const c2 = parseInt(document.getElementById('criterio2').value) || 0;
-            const c3 = parseInt(document.getElementById('criterio3').value) || 0;
-            const c4 = parseInt(document.getElementById('criterio4').value) || 0;
-            const c5 = parseInt(document.getElementById('criterio5').value) || 0;
-            const c6 = document.getElementById('criterio6').value; // Puede ser N/A
-
-            const datosEvaluacion = {
-                proveedor_id: prov_id,
-                mes,
-                calidad_entrega: c1,
-                evaluacion_usuario: c2,
-                cumplimiento_tiempo: c3,
-                reclamos: c4,
-                conveniencia_economica: c5,
-                compra_local: c6 === 'N/A' ? null : parseInt(c6),
-                notas: document.getElementById('notasProveedor').value
-            };
-
-            // Verificar si ya existe evaluación para este proveedor en este mes
-            const { data: existing } = await supabase
-                .from('proveedor_scorecard')
-                .select('id')
-                .eq('proveedor_id', prov_id)
-                .eq('mes', mes);
-
-            let error;
-            if (existing && existing.length > 0) {
-                // Actualizar
-                const { error: updateError } = await supabase
-                    .from('proveedor_scorecard')
-                    .update(datosEvaluacion)
-                    .eq('proveedor_id', prov_id)
-                    .eq('mes', mes);
-                error = updateError;
-            } else {
-                // Insertar
-                const { error: insertError } = await supabase
-                    .from('proveedor_scorecard')
-                    .insert([datosEvaluacion]);
-                error = insertError;
-            }
-
-            if (error) alert('Error: ' + error.message);
-            else {
-                alert('Evaluación guardada ✓');
-                // Limpiar formulario
-                document.getElementById('criterio1').value = '';
-                document.getElementById('criterio2').value = '';
-                document.getElementById('criterio3').value = '';
-                document.getElementById('criterio4').value = '';
-                document.getElementById('criterio5').value = '';
-                document.getElementById('criterio6').value = '';
-                document.getElementById('notasProveedor').value = '';
-                document.getElementById('proveedorSelect').value = '';
-                const status = document.getElementById('statusPrecarga');
-                if (status) status.style.display = 'none';
-                loadScorecardTable();
-            }
-        }
-
-        function calcularPromedioWeighted(c1, c2, c3, c4, c5, c6) {
-            // c6 puede ser null (N/A) o un número 1-5
-            const compraLocalNA = c6 === null || c6 === 'N/A';
-
-            if (compraLocalNA) {
-                // Si Compra Local es N/A, redistribuir el 10% entre los otros 5
-                // Nuevos pesos: 20/90, 20/90, 10/90, 10/90, 30/90
-                return (c1 * 0.222) + (c2 * 0.222) + (c3 * 0.111) + (c4 * 0.111) + (c5 * 0.333);
-            } else {
-                // Todos 6 criterios con sus pesos normales
-                return (c1 * 0.20) + (c2 * 0.20) + (c3 * 0.10) + (c4 * 0.10) + (c5 * 0.30) + (c6 * 0.10);
-            }
-        }
-
-        function getCalificacion(promedio) {
-            if (promedio >= 4.5) return 'CALIFICADO';
-            if (promedio >= 3.0) return 'CONDICIONAL';
-            return 'NO CALIFICADO';
-        }
-
-        function getColorCalificacion(promedio) {
-            if (promedio >= 4.5) return '#27ae60'; // Verde
-            if (promedio >= 3.0) return '#f39c12'; // Amarillo
-            return '#e74c3c'; // Naranja
-        }
-
-        async function editScorecard(id) {
-            const { data } = await supabase.from('proveedor_scorecard').select('*').eq('id', id);
-            if (!data || data.length === 0) return;
-
-            const s = data[0];
-            document.getElementById('cumplimiento').value = s.cumplimiento_entrega;
-            document.getElementById('calidad').value = s.calidad;
-            document.getElementById('precio').value = s.precio_competitivo;
-            document.getElementById('cercania').value = s.cercania;
-            document.getElementById('notasProveedor').value = s.notas || '';
-
-            // Cambiar botón a "Actualizar"
-            const btn = document.querySelector('button[onclick="addScorecard()"]');
-            btn.textContent = 'Actualizar Evaluación';
-            btn.onclick = () => updateScorecard(id);
-
-            window.scrollTo(0, document.querySelector('.form-section').offsetTop - 100);
-        }
-
-        async function updateScorecard(id) {
-            const cumplimiento = parseInt(document.getElementById('cumplimiento').value);
-            const calidad = parseInt(document.getElementById('calidad').value);
-            const precio = parseInt(document.getElementById('precio').value);
-            const cercania = parseInt(document.getElementById('cercania').value);
-            const promedio = (cumplimiento + calidad + precio + cercania) / 4;
-
-            const { error } = await supabase.from('proveedor_scorecard').update({
-                cumplimiento_entrega: cumplimiento,
-                calidad,
-                precio_competitivo: precio,
-                cercania,
-                promedio,
-                notas: document.getElementById('notasProveedor').value
-            }).eq('id', id);
-
-            if (error) alert('Error: ' + error.message);
-            else {
-                alert('Evaluación actualizada');
-                loadScorecardTable();
-            }
-        }
-
-        async function deleteScorecard(id) {
-            if (!confirm('¿Eliminar esta evaluación?')) return;
-
-            const { error } = await supabase.from('proveedor_scorecard').delete().eq('id', id);
-
-            if (error) alert('Error: ' + error.message);
-            else {
-                alert('Evaluación eliminada');
-                loadScorecardTable();
-            }
-        }
-
-        async function loadEvaluacionesPrevias() {
-            const mesActual = document.getElementById('scorecardMonth').value;
-            if (!mesActual) return;
-
-            // Calcular mes anterior
-            const [año, mes] = mesActual.split('-');
-            let mesAnterior;
-            if (mes === '01') {
-                mesAnterior = `${parseInt(año) - 1}-12`;
-            } else {
-                mesAnterior = `${año}-${String(parseInt(mes) - 1).padStart(2, '0')}`;
-            }
-
-            // Buscar evaluaciones del mes anterior
-            const { data: evalsPrevias } = await supabase
-                .from('proveedor_scorecard')
-                .select('*')
-                .eq('mes', mesAnterior);
-
-            if (evalsPrevias && evalsPrevias.length > 0) {
-                // Crear mapa de evaluaciones previas por proveedor
-                const mapPrevias = {};
-                evalsPrevias.forEach(e => {
-                    mapPrevias[e.proveedor_id] = e;
-                });
-
-                // Guardar en variable global para usar al agregar
-                window.evaluacionesPrevias = mapPrevias;
-                window.mesAnterior = mesAnterior;
-                
-                console.log(`✓ Evaluaciones del mes anterior (${mesAnterior}) cargadas`);
-            } else {
-                window.evaluacionesPrevias = null;
-            }
-
-            loadScorecardTable();
-        }
-
-        async function copiarTodasEvaluacionesAnterior() {
-            const mesActual = document.getElementById('scorecardMonth').value;
-            if (!mesActual) {
-                alert('Selecciona un mes primero');
-                return;
-            }
-
-            // Calcular mes anterior
-            const [año, mes] = mesActual.split('-');
-            let mesAnterior;
-            if (mes === '01') {
-                mesAnterior = `${parseInt(año) - 1}-12`;
-            } else {
-                mesAnterior = `${año}-${String(parseInt(mes) - 1).padStart(2, '0')}`;
-            }
-
-            console.log(`Copiando evaluaciones de ${mesAnterior} a ${mesActual}`);
-            const statusDiv = document.getElementById('statusCopiaTotal');
-            statusDiv.style.display = 'block';
-            statusDiv.style.background = '#e3f2fd';
-            statusDiv.style.color = '#1565c0';
-            statusDiv.textContent = '⏳ Copiando evaluaciones...';
-
-            try {
-                // Obtener todas las evaluaciones del mes anterior
-                const { data: evalsPrevias } = await supabase
-                    .from('proveedor_scorecard')
-                    .select('*')
-                    .eq('mes', mesAnterior);
-
-                if (!evalsPrevias || evalsPrevias.length === 0) {
-                    statusDiv.style.background = '#fff3cd';
-                    statusDiv.style.color = '#856404';
-                    statusDiv.textContent = '⚠️ No hay evaluaciones en ' + mesAnterior;
-                    return;
-                }
-
-                let copiadas = 0;
-                let saltadas = 0;
-
-                // Por cada evaluación anterior, copiar al mes actual
-                for (const evalAnterior of evalsPrevias) {
-                    // Verificar si ya existe en el mes actual
-                    const { data: existente } = await supabase
-                        .from('proveedor_scorecard')
-                        .select('id')
-                        .eq('proveedor_id', evalAnterior.proveedor_id)
-                        .eq('mes', mesActual);
-
-                    if (existente && existente.length > 0) {
-                        // Ya existe, saltar
-                        saltadas++;
-                        continue;
-                    }
-
-                    // No existe, crear nueva evaluación
-                    const { error } = await supabase
-                        .from('proveedor_scorecard')
-                        .insert([{
-                            proveedor_id: evalAnterior.proveedor_id,
-                            mes: mesActual,
-                            calidad_entrega: evalAnterior.calidad_entrega,
-                            evaluacion_usuario: evalAnterior.evaluacion_usuario,
-                            cumplimiento_tiempo: evalAnterior.cumplimiento_tiempo,
-                            reclamos: evalAnterior.reclamos,
-                            conveniencia_economica: evalAnterior.conveniencia_economica,
-                            compra_local: evalAnterior.compra_local,
-                            notas: evalAnterior.notas
-                        }]);
-
-                    if (!error) {
-                        copiadas++;
-                    }
-                }
-
-                // Mostrar resultado
-                let mensaje = `✓ ${copiadas} evaluaciones copiadas a ${mesActual}`;
-                if (saltadas > 0) {
-                    mensaje += ` (${saltadas} ya existían)`;
-                }
-
-                statusDiv.style.background = '#d4edda';
-                statusDiv.style.color = '#155724';
-                statusDiv.textContent = mensaje;
-
-                // Recargar tabla
-                setTimeout(() => {
-                    loadScorecardTable();
-                }, 500);
-
-            } catch (error) {
-                console.error('Error copiando evaluaciones:', error);
-                statusDiv.style.background = '#f8d7da';
-                statusDiv.style.color = '#721c24';
-                statusDiv.textContent = '❌ Error: ' + error.message;
-            }
-        }
-
-        function precargaEvaluacionPreviaProveedor(proveedorId) {
-            if (!window.evaluacionesPrevias || !window.evaluacionesPrevias[proveedorId]) {
-                return null;
-            }
-            return window.evaluacionesPrevias[proveedorId];
-        }
-
-        async function loadScorecardTable() {
-            const mes = document.getElementById('scorecardMonth').value;
-            const { data: scores } = await supabase
-                .from('proveedor_scorecard')
-                .select('*')
-                .eq('mes', mes);
-            
-            let html = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
-                <thead>
-                    <tr style="background:#34495e; color:white;">
-                        <th style="padding:10px; text-align:left;">Proveedor</th>
-                        <th style="padding:10px; text-align:center;">Calidad</th>
-                        <th style="padding:10px; text-align:center;">Eval. Usuario</th>
-                        <th style="padding:10px; text-align:center;">Cump. Tiempo</th>
-                        <th style="padding:10px; text-align:center;">Reclamos</th>
-                        <th style="padding:10px; text-align:center;">Conv. Econ.</th>
-                        <th style="padding:10px; text-align:center;">Compra Local</th>
-                        <th style="padding:10px; text-align:center; background:#2c3e50;">Promedio</th>
-                        <th style="padding:10px; text-align:center; background:#2c3e50;">Calificación</th>
-                        <th style="padding:10px; text-align:center;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            
-            if (scores && scores.length > 0) {
-                // Obtener datos de proveedores
-                const { data: provs } = await supabase.from('proveedores').select('*');
-                const provMap = {};
-                provs?.forEach(p => { provMap[p.id] = p.nombre; });
-
-                scores.sort((a, b) => {
-                    const promA = calcularPromedioWeighted(a.calidad_entrega, a.evaluacion_usuario, a.cumplimiento_tiempo, a.reclamos, a.conveniencia_economica, a.compra_local);
-                    const promB = calcularPromedioWeighted(b.calidad_entrega, b.evaluacion_usuario, b.cumplimiento_tiempo, b.reclamos, b.conveniencia_economica, b.compra_local);
-                    return promB - promA;
-                }).forEach(s => {
-                    const pName = provMap[s.proveedor_id] || 'N/A';
-                    const promedio = calcularPromedioWeighted(s.calidad_entrega, s.evaluacion_usuario, s.cumplimiento_tiempo, s.reclamos, s.conveniencia_economica, s.compra_local);
-                    const calificacion = getCalificacion(promedio);
-                    const color = getColorCalificacion(promedio);
-                    const c6Display = s.compra_local === null ? 'N/A' : s.compra_local;
-
-                    html += `<tr style="border-bottom:1px solid #ecf0f1;">
-                        <td style="padding:10px;">${pName}</td>
-                        <td style="padding:10px; text-align:center;">${s.calidad_entrega}</td>
-                        <td style="padding:10px; text-align:center;">${s.evaluacion_usuario}</td>
-                        <td style="padding:10px; text-align:center;">${s.cumplimiento_tiempo}</td>
-                        <td style="padding:10px; text-align:center;">${s.reclamos}</td>
-                        <td style="padding:10px; text-align:center;">${s.conveniencia_economica}</td>
-                        <td style="padding:10px; text-align:center;">${c6Display}</td>
-                        <td style="padding:10px; text-align:center; font-weight:600; background:#ecf0f1;">${promedio.toFixed(2)}</td>
-                        <td style="padding:10px; text-align:center; font-weight:600; color:white; background:${color}; border-radius:4px;">${calificacion}</td>
-                        <td style="padding:10px; text-align:center;">
-                            <button class="btn-secondary" onclick="editScorecard('${s.id}')" style="padding:6px 10px; font-size:11px;">Editar</button>
-                            <button class="btn-secondary" onclick="deleteScorecard('${s.id}')" style="padding:6px 10px; font-size:11px; margin-left:5px;">Eliminar</button>
-                        </td>
-                    </tr>`;
-                });
-            } else {
-                html += '<tr><td colspan="10" style="padding:20px; text-align:center; color:#7f8c8d;">Sin evaluaciones para este mes</td></tr>';
-            }
-            html += '</tbody></table>';
-            document.getElementById('proveedoresTable').innerHTML = html;
-        }
-
-        // ============ SECCIÓN STOCK ============
-        async function addStock() {
-            const mes = document.getElementById('stockMes').value;
-            const tipo = document.getElementById('stockTipo').value;
-            const valorPesos = parseFloat(document.getElementById('stockValor').value);
-            const valorDolar = parseFloat(document.getElementById('valorDolar').value);
-
-            if (!mes || !tipo || !valorPesos || !valorDolar) {
-                alert('Completa todos los campos obligatorios');
-                return;
-            }
-
-            const valorUSD = valorPesos / valorDolar;
-
-            const { error } = await supabase.from('stock').insert([{
-                mes,
-                tipo,
-                categoria: tipo,
-                cantidad: 0,
-                precio_unitario: 0,
-                stock_valor_pesos: valorPesos,
-                valor_dolar: valorDolar,
-                stock_valor_usd: valorUSD
-            }]);
-
-            if (error) {
-                alert('Error: ' + error.message);
-                return;
-            }
-
-            alert('Stock registrado');
-            document.getElementById('stockMes').value = '';
-            document.getElementById('stockTipo').value = '';
-            document.getElementById('stockValor').value = '';
-            document.getElementById('valorDolar').value = '';
-            loadStock();
-        }
-
-        async function loadStock() {
-            const { data: stockDataRaw } = await supabase.from('stock').select('*').order('mes', { ascending: false });
-            
-            let data = stockDataRaw || [];
-            if (data.length === 0) {
-                console.log('No hay datos de stock');
-            }
-
-            // Mostrar tabla de stocks
-            loadStockTable(data);
-
-            // Establecer mes actual por defecto
-            const today = new Date();
-            const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            if (!document.getElementById('stockViewMes').value) {
-                document.getElementById('stockViewMes').value = currentMonth;
-            }
-
-            // Cargar datos para el mes seleccionado
-            loadStockForMonth();
-
-            // Cargar gráficos comparativos
-            loadComparisonCharts(data);
-        }
-
-        async function loadStockForMonth() {
-            const selectedMonth = document.getElementById('stockViewMes').value;
-            
-            const { data: monthData } = await supabase.from('stock').select('*').eq('mes', selectedMonth);
-
-            if (!monthData || monthData.length === 0) {
-                document.getElementById('herrajesTotal').textContent = '$0';
-                document.getElementById('insumosTotal').textContent = '$0';
-                document.getElementById('stockTotalPesos').textContent = '$0';
-                document.getElementById('stockTotalUSD').textContent = 'USD $0';
-                return;
-            }
-
-            const herrajesTotal = monthData.filter(d => d.tipo === 'herrajes').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-            const insumosTotal = monthData.filter(d => d.tipo === 'insumos').reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-
-            document.getElementById('herrajesTotal').textContent = '$' + formatNumber(herrajesTotal);
-            document.getElementById('insumosTotal').textContent = '$' + formatNumber(insumosTotal);
-            document.getElementById('stockTotalPesos').textContent = '$' + formatNumber(herrajesTotal + insumosTotal);
-
-            // Calcular promedio dólar mes
-            const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
-            const totalUSD = (herrajesTotal + insumosTotal) / avgDolar;
-            document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
-        }
-
-        function loadStockTable(data) {
-            let html = '<table><thead><tr><th>Mes</th><th>Tipo</th><th>Stock ($)</th><th>Dólar</th><th>Stock (USD)</th><th>Acción</th></tr></thead><tbody>';
-            
-            if (data && data.length > 0) {
-                data.forEach(d => {
-                    const tipo = d.tipo === 'herrajes' ? '🔧 Herrajes' : '📦 Insumos';
-                    const stockUSD = d.stock_valor_pesos / (d.valor_dolar || 1);
-                    html += `<tr>
-                        <td>${d.mes}</td>
-                        <td>${tipo}</td>
-                        <td>$${formatNumber(d.stock_valor_pesos)}</td>
-                        <td>$${d.valor_dolar.toFixed(2)}</td>
-                        <td>USD $${formatNumber(stockUSD)}</td>
-                        <td><button class="btn-secondary" onclick="deleteStock('${d.id}')" style="padding: 6px 12px; font-size: 12px;">Eliminar</button></td>
-                    </tr>`;
-                });
-            } else {
-                html += '<tr><td colspan="6" class="no-data">Sin registros de stock</td></tr>';
-            }
-            html += '</tbody></table>';
-            document.getElementById('stockTable').innerHTML = html;
-        }
-
-        async function deleteStock(id) {
-            if (!confirm('¿Eliminar este registro de stock?')) return;
-
-            const { error } = await supabase.from('stock').delete().eq('id', id);
-
-            if (error) alert('Error: ' + error.message);
-            else {
-                alert('Registro eliminado');
-                loadStock();
-            }
-        }
-
-        function loadComparisonCharts(data) {
-            console.log('loadComparisonCharts called with data:', data ? data.length : 0, 'items');
-            
-            if (!data || data.length === 0) {
-                console.log('Sin datos para gráficos');
-                return;
-            }
-
-            try {
-                // Obtener todos los meses disponibles
-                const meses = [...new Set(data.map(d => d.mes))].sort().reverse();
-                console.log('Meses encontrados:', meses);
-                
-                if (meses.length === 0) {
-                    console.log('No hay meses');
-                    return;
-                }
-
-                // Últimas 12 comparaciones (este mes vs año pasado)
-                const comparaciones = [];
-                for (let i = 0; i < Math.min(12, meses.length); i++) {
-                    const mesActual = meses[i];
-                    const [año, mes] = mesActual.split('-');
-                    const mesAnterior = `${parseInt(año) - 1}-${mes}`;
-                    
-                    comparaciones.push({
-                        label: `${mes}/${año.slice(2)}`,
-                        mesActual,
-                        mesAnterior,
-                        mesAnteriorExiste: meses.includes(mesAnterior)
-                    });
-                }
-
-                // Calcular datos para Herrajes (PESOS)
-                const herrajesActual = comparaciones.map(c => {
-                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
-                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                });
-
-                const herrajesPasado = comparaciones.map(c => {
-                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'herrajes');
-                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                });
-
-                // Calcular datos para Insumos (PESOS)
-                const insumosActual = comparaciones.map(c => {
-                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
-                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                });
-
-                const insumosPasado = comparaciones.map(c => {
-                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'insumos');
-                    return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                });
-
-                // Calcular datos para Herrajes (USD)
-                const herrajesActualUSD = comparaciones.map(c => {
-                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
-                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
-                    return avgDolar > 0 ? pesos / avgDolar : 0;
-                });
-
-                const herrajesPasadoUSD = comparaciones.map(c => {
-                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'herrajes');
-                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
-                    return avgDolar > 0 ? pesos / avgDolar : 0;
-                });
-
-                // Calcular datos para Insumos (USD)
-                const insumosActualUSD = comparaciones.map(c => {
-                    const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
-                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
-                    return avgDolar > 0 ? pesos / avgDolar : 0;
-                });
-
-                const insumosPasadoUSD = comparaciones.map(c => {
-                    const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'insumos');
-                    const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
-                    return avgDolar > 0 ? pesos / avgDolar : 0;
-                });
-
-                const labels = comparaciones.map(c => c.label);
-
-                // Gráfico Herrajes Comparativo (PESOS)
-                const herrajesCompElement = document.getElementById('herrajesCompChart');
-                if (herrajesCompElement) {
-                    if (charts.herrajesCompChart) charts.herrajesCompChart.destroy();
-                    charts.herrajesCompChart = new Chart(herrajesCompElement.getContext('2d'), {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                {
-                                    label: 'Este Año',
-                                    data: herrajesActual,
-                                    backgroundColor: '#e74c3c',
-                                    borderColor: '#c0392b',
-                                    borderWidth: 1
-                                },
-                                {
-                                    label: 'Año Pasado',
-                                    data: herrajesPasado,
-                                    backgroundColor: '#34495e',
-                                    borderColor: '#2c3e50',
-                                    borderWidth: 1
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: true, position: 'top' }
-                            },
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
-                        }
-                    });
-                }
-
-                // Gráfico Insumos Comparativo (PESOS)
-                const insumosCompElement = document.getElementById('insumosCompChart');
-                if (insumosCompElement) {
-                    if (charts.insumosCompChart) charts.insumosCompChart.destroy();
-                    charts.insumosCompChart = new Chart(insumosCompElement.getContext('2d'), {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                {
-                                    label: 'Este Año',
-                                    data: insumosActual,
-                                    backgroundColor: '#3498db',
-                                    borderColor: '#2980b9',
-                                    borderWidth: 1
-                                },
-                                {
-                                    label: 'Año Pasado',
-                                    data: insumosPasado,
-                                    backgroundColor: '#34495e',
-                                    borderColor: '#2c3e50',
-                                    borderWidth: 1
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: true, position: 'top' }
-                            },
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
-                        }
-                    });
-                }
-
-                // Gráfico Herrajes Comparativo (USD)
-                const herrajesCompUSDElement = document.getElementById('herrajesCompUSDChart');
-                if (herrajesCompUSDElement) {
-                    if (charts.herrajesCompUSDChart) charts.herrajesCompUSDChart.destroy();
-                    charts.herrajesCompUSDChart = new Chart(herrajesCompUSDElement.getContext('2d'), {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                {
-                                    label: 'Este Año',
-                                    data: herrajesActualUSD,
-                                    backgroundColor: '#e74c3c',
-                                    borderColor: '#c0392b',
-                                    borderWidth: 1
-                                },
-                                {
-                                    label: 'Año Pasado',
-                                    data: herrajesPasadoUSD,
-                                    backgroundColor: '#34495e',
-                                    borderColor: '#2c3e50',
-                                    borderWidth: 1
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: true, position: 'top' }
-                            },
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
-                        }
-                    });
-                }
-
-                // Gráfico Insumos Comparativo (USD)
-                const insumosCompUSDElement = document.getElementById('insumosCompUSDChart');
-                if (insumosCompUSDElement) {
-                    if (charts.insumosCompUSDChart) charts.insumosCompUSDChart.destroy();
-                    charts.insumosCompUSDChart = new Chart(insumosCompUSDElement.getContext('2d'), {
-                        type: 'bar',
-                        data: {
-                            labels,
-                            datasets: [
-                                {
-                                    label: 'Este Año',
-                                    data: insumosActualUSD,
-                                    backgroundColor: '#3498db',
-                                    borderColor: '#2980b9',
-                                    borderWidth: 1
-                                },
-                                {
-                                    label: 'Año Pasado',
-                                    data: insumosPasadoUSD,
-                                    backgroundColor: '#34495e',
-                                    borderColor: '#2c3e50',
-                                    borderWidth: 1
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { display: true, position: 'top' }
-                            },
-                            scales: {
-                                y: { beginAtZero: true }
-                            }
-                        }
-                    });
-                }
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('✓ Supabase conectado');
+                await cargarMejoras();
             } catch (e) {
-                console.error('Error creando gráficos comparativos:', e);
+                console.error('Error:', e);
             }
         }
 
-        // ============ MÓDULO MEJORAS ============
         async function agregarMejora() {
             const titulo = document.getElementById('mejoraTitulo').value;
-            const descripcion = document.getElementById('mejoraDescripcion').value;
+            const desc = document.getElementById('mejoraDesc').value;
 
             if (!titulo) {
-                alert('Ingresa un título para la mejora');
+                alert('Ingresa un título');
                 return;
             }
 
             try {
                 const { error } = await supabase.from('mejoras').insert([{
                     titulo,
-                    descripcion,
+                    descripcion: desc,
                     estado: 'en_proceso'
                 }]);
 
@@ -1946,124 +193,95 @@
 
                 alert('✓ Mejora agregada');
                 document.getElementById('mejoraTitulo').value = '';
-                document.getElementById('mejoraDescripcion').value = '';
-                loadMejoras();
+                document.getElementById('mejoraDesc').value = '';
+                await cargarMejoras();
             } catch (e) {
                 alert('Error: ' + e.message);
             }
         }
 
-        async function loadMejoras() {
+        async function cargarMejoras() {
             try {
-                console.log('loadMejoras: iniciando...');
-                
                 const { data: mejoras, error } = await supabase.from('mejoras').select('*').order('estado').order('created_at', { ascending: false });
 
                 if (error) {
-                    console.error('Error consultando mejoras:', error);
-                    document.getElementById('mejorasEnProceso').innerHTML = '<p style="color: #e74c3c; padding: 20px; background: #fadbd8; border-radius: 6px;">⚠️ Error: Tablas no creadas. Ejecuta SQL en Supabase primero.</p>';
-                    document.getElementById('mejorasCompletadas').innerHTML = '';
+                    console.error('Error:', error);
+                    document.getElementById('mejorasEnProceso').innerHTML = '⚠️ Ejecuta el SQL en Supabase primero (SQL_MEJORAS.txt)';
                     return;
                 }
 
-                console.log('Mejoras encontradas:', mejoras?.length || 0);
-
-                // Separar en proceso y completadas
                 const enProceso = mejoras?.filter(m => m.estado === 'en_proceso') || [];
                 const completadas = mejoras?.filter(m => m.estado === 'completada') || [];
 
-                // Mostrar mejoras en proceso
-                let htmlEnProceso = '';
+                let htmlProceso = '';
                 for (const mejora of enProceso) {
                     const { data: pasos } = await supabase.from('pasos_mejora').select('*').eq('mejora_id', mejora.id).order('orden');
-                    
                     const completados = pasos?.filter(p => p.completado).length || 0;
                     const total = pasos?.length || 0;
-                    const porcentaje = total > 0 ? (completados / total * 100) : 0;
+                    const pct = total > 0 ? (completados / total * 100) : 0;
 
-                    htmlEnProceso += `
-                        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #3498db; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <h4 style="color: #2c3e50; margin: 0;">${mejora.titulo}</h4>
-                                <span style="background: #ecf0f1; padding: 5px 10px; border-radius: 20px; font-weight: 600; color: #7f8c8d; font-size: 12px;">${completados}/${total}</span>
+                    htmlProceso += `
+                        <div class="mejora-card">
+                            <div class="mejora-header">
+                                <h4>${mejora.titulo}</h4>
+                                <span class="mejora-counter">${completados}/${total}</span>
                             </div>
-                            <p style="color: #7f8c8d; font-size: 13px; margin-bottom: 10px;">${mejora.descripcion || 'Sin descripción'}</p>
-                            
-                            <!-- Barra progreso -->
-                            <div style="background: #ecf0f1; height: 8px; border-radius: 4px; margin-bottom: 15px; overflow: hidden;">
-                                <div style="background: linear-gradient(90deg, #27ae60 0%, #3498db 100%); height: 100%; width: ${porcentaje}%; transition: width 0.3s;"></div>
-                            </div>
-
-                            <!-- Pasos -->
-                            <div id="pasos-${mejora.id}" style="margin-bottom: 15px;">
-                                ${pasos?.map((paso, idx) => `
-                                    <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 10px; background: #f9f9f9; border-radius: 6px;">
-                                        <input type="checkbox" ${paso.completado ? 'checked' : ''} onchange="togglePaso('${paso.id}', '${mejora.id}')" style="cursor: pointer; margin-right: 10px;">
-                                        <span style="flex: 1; ${paso.completado ? 'text-decoration: line-through; color: #7f8c8d;' : ''}">${paso.titulo}</span>
-                                        ${paso.completado ? `<span style="font-size: 11px; color: #27ae60;">${new Date(paso.fecha_completacion).toLocaleDateString('es-AR')}</span>` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-
-                            <!-- Agregar paso -->
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="nuevoPaso-${mejora.id}" placeholder="Nuevo paso..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
-                                <button class="btn-primary" onclick="agregarPaso('${mejora.id}')" style="padding: 8px 15px; font-size: 13px;">➕</button>
-                                <button class="btn-danger" onclick="eliminarMejora('${mejora.id}')" style="padding: 8px 15px; font-size: 13px; background: #e74c3c;">🗑️</button>
-                            </div>
+                            <p style="color: #7f8c8d; margin-bottom: 10px;">${mejora.descripcion || ''}</p>
+                            <div class="progress-bar"><div class="progress-fill" style="width: ${pct}%"></div></div>
+                            ${pasos?.map(paso => `
+                                <div class="paso-item ${paso.completado ? 'completado' : ''}">
+                                    <input type="checkbox" ${paso.completado ? 'checked' : ''} onchange="togglePaso('${paso.id}', '${mejora.id}')">
+                                    <span>${paso.titulo}</span>
+                                    ${paso.completado ? `<span style="font-size: 11px; color: #27ae60;">${new Date(paso.fecha_completacion).toLocaleDateString('es-AR')}</span>` : ''}
+                                </div>
+                            `).join('')}
+                            <input type="text" id="paso-${mejora.id}" placeholder="Nuevo paso..." style="margin-top: 10px; width: 70%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            <button class="btn" onclick="agregarPaso('${mejora.id}')" style="margin-left: 5px; padding: 8px 15px;">➕</button>
+                            <button class="btn" onclick="eliminarMejora('${mejora.id}')" style="background: #e74c3c; padding: 8px 15px;">🗑️</button>
                         </div>
                     `;
                 }
 
-                document.getElementById('mejorasEnProceso').innerHTML = htmlEnProceso || '<p style="color: #7f8c8d; padding: 20px;">Sin mejoras en proceso</p>';
-
-                // Mostrar mejoras completadas
                 let htmlCompletadas = '';
                 for (const mejora of completadas) {
                     htmlCompletadas += `
-                        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #27ae60; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <h4 style="color: #27ae60; margin: 0;">✅ ${mejora.titulo}</h4>
-                                <span style="background: #d4edda; padding: 5px 10px; border-radius: 20px; color: #155724; font-size: 12px; font-weight: 600;">COMPLETADA</span>
-                            </div>
-                            <p style="color: #7f8c8d; font-size: 13px; margin-top: 10px;">Finalizada: ${new Date(mejora.fecha_completacion).toLocaleDateString('es-AR')}</p>
+                        <div class="mejora-card completada">
+                            <h4 style="color: #27ae60;">✅ ${mejora.titulo}</h4>
+                            <p style="color: #666; font-size: 13px;">Finalizada: ${new Date(mejora.fecha_completacion).toLocaleDateString('es-AR')}</p>
                         </div>
                     `;
                 }
 
-                document.getElementById('mejorasCompletadas').innerHTML = htmlCompletadas || '<p style="color: #7f8c8d; padding: 20px;">Sin mejoras completadas aún</p>';
-                console.log('loadMejoras: completado');
+                document.getElementById('mejorasEnProceso').innerHTML = htmlProceso || '<p style="color: #999;">Sin mejoras en proceso</p>';
+                document.getElementById('mejorasCompletadas').innerHTML = htmlCompletadas || '<p style="color: #999;">Sin mejoras completadas</p>';
 
             } catch (e) {
-                console.error('Error en loadMejoras:', e);
-                document.getElementById('mejorasEnProceso').innerHTML = '<p style="color: #e74c3c; padding: 20px; background: #fadbd8; border-radius: 6px;">❌ Error: ' + e.message + '</p>';
+                console.error('Error en cargarMejoras:', e);
             }
         }
 
         async function agregarPaso(mejoraId) {
-            const titulo = document.getElementById(`nuevoPaso-${mejoraId}`).value;
-
+            const titulo = document.getElementById(`paso-${mejoraId}`).value;
             if (!titulo) {
-                alert('Ingresa un título para el paso');
+                alert('Ingresa el título del paso');
                 return;
             }
 
             try {
-                // Contar pasos existentes
                 const { data: pasos } = await supabase.from('pasos_mejora').select('orden').eq('mejora_id', mejoraId).order('orden', { ascending: false }).limit(1);
-                const nuevoOrden = pasos?.length > 0 ? (pasos[0].orden + 1) : 0;
+                const orden = pasos?.length > 0 ? (pasos[0].orden + 1) : 0;
 
                 const { error } = await supabase.from('pasos_mejora').insert([{
                     mejora_id: mejoraId,
                     titulo,
-                    orden: nuevoOrden,
+                    orden,
                     completado: false
                 }]);
 
                 if (error) throw error;
 
-                document.getElementById(`nuevoPaso-${mejoraId}`).value = '';
-                loadMejoras();
+                document.getElementById(`paso-${mejoraId}`).value = '';
+                await cargarMejoras();
             } catch (e) {
                 alert('Error: ' + e.message);
             }
@@ -2071,77 +289,45 @@
 
         async function togglePaso(pasoId, mejoraId) {
             try {
-                // Obtener estado actual
                 const { data: paso } = await supabase.from('pasos_mejora').select('completado').eq('id', pasoId).single();
-                
-                const nuevoEstado = !paso.completado;
-                const fechaCompletacion = nuevoEstado ? new Date().toISOString() : null;
+                const nuevo = !paso.completado;
 
-                const { error } = await supabase.from('pasos_mejora').update({
-                    completado: nuevoEstado,
-                    fecha_completacion: fechaCompletacion
+                await supabase.from('pasos_mejora').update({
+                    completado: nuevo,
+                    fecha_completacion: nuevo ? new Date().toISOString() : null
                 }).eq('id', pasoId);
 
-                if (error) throw error;
-
-                // Verificar si todos los pasos están completos
+                // Verificar si todo está completo
                 const { data: pasos } = await supabase.from('pasos_mejora').select('completado').eq('mejora_id', mejoraId);
-                const todosCompletos = pasos?.every(p => p.completado) && pasos?.length > 0;
-
-                if (todosCompletos) {
-                    // Marcar mejora como completada
+                if (pasos?.every(p => p.completado) && pasos?.length > 0) {
                     await supabase.from('mejoras').update({
                         estado: 'completada',
                         fecha_completacion: new Date().toISOString()
                     }).eq('id', mejoraId);
                 }
 
-                loadMejoras();
+                await cargarMejoras();
             } catch (e) {
                 alert('Error: ' + e.message);
             }
         }
 
         async function eliminarMejora(mejoraId) {
-            if (!confirm('¿Eliminar esta mejora y todos sus pasos?')) return;
-
-            try {
-                // Eliminar pasos (cascada automática)
-                await supabase.from('mejoras').delete().eq('id', mejoraId);
-                loadMejoras();
-            } catch (e) {
-                alert('Error: ' + e.message);
+            if (confirm('¿Eliminar esta mejora?')) {
+                try {
+                    await supabase.from('mejoras').delete().eq('id', mejoraId);
+                    await cargarMejoras();
+                } catch (e) {
+                    alert('Error: ' + e.message);
+                }
             }
         }
 
-        // Verificar login al cargar
         window.addEventListener('load', () => {
             if (sessionStorage.getItem('loggedIn')) {
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('dashboard').style.display = 'block';
-                
-                // Verificar que los divs existen y están bien
-                setTimeout(() => {
-                    console.log('=== VERIFICACIÓN POST-LOAD ===');
-                    const costos = document.getElementById('costos');
-                    const proveedores = document.getElementById('proveedores');
-                    const stock = document.getElementById('stock');
-                    const mejoras = document.getElementById('mejoras');
-                    
-                    console.log('costos existe:', !!costos, 'display:', costos?.style.display);
-                    console.log('proveedores existe:', !!proveedores, 'display:', proveedores?.style.display);
-                    console.log('stock existe:', !!stock, 'display:', stock?.style.display);
-                    console.log('mejoras existe:', !!mejoras, 'display:', mejoras?.style.display);
-                    
-                    // Forzar que costos se muestre
-                    if (costos) costos.style.display = 'block';
-                    
-                    console.log('=== FIN VERIFICACIÓN ===');
-                }, 500);
-                
-                initDashboard().catch(error => {
-                    console.error('Error al cargar dashboard:', error);
-                });
+                inicializar();
             }
         });
     </script>

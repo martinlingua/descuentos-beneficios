@@ -1239,7 +1239,7 @@
             const c3 = parseInt(document.getElementById('criterio3').value) || 0;
             const c4 = parseInt(document.getElementById('criterio4').value) || 0;
             const c5 = parseInt(document.getElementById('criterio5').value) || 0;
-            const c6 = document.getElementById('criterio6').value; // Puede ser N/A
+            const c6 = document.getElementById('criterio6').value;
 
             const datosEvaluacion = {
                 proveedor_id: prov_id,
@@ -1277,9 +1277,14 @@
                 error = insertError;
             }
 
-            if (error) alert('Error: ' + error.message);
-            else {
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
                 alert('Evaluación guardada ✓');
+                
+                // IMPORTANTE: Actualizar seguimiento semestral
+                await actualizarSeguimientoProveedor(prov_id);
+                
                 // Limpiar formulario
                 document.getElementById('criterio1').value = '';
                 document.getElementById('criterio2').value = '';
@@ -1291,7 +1296,260 @@
                 document.getElementById('proveedorSelect').value = '';
                 const status = document.getElementById('statusPrecarga');
                 if (status) status.style.display = 'none';
+                
                 loadScorecardTable();
+            }
+        }
+
+        // ============ FUNCIONES DE SEGUIMIENTO SEMESTRAL ============
+        
+        async function actualizarSeguimientoProveedor(proveedor_id) {
+            try {
+                // 1. Obtener últimas 3 evaluaciones
+                const { data: evaluaciones } = await supabase
+                    .from('proveedor_scorecard')
+                    .select('*')
+                    .eq('proveedor_id', proveedor_id)
+                    .order('mes', { ascending: false })
+                    .limit(3);
+
+                if (!evaluaciones || evaluaciones.length === 0) return;
+
+                // 2. Calcular si cada una es CONFIABLE
+                const esConfiable = evaluaciones.map(e => {
+                    const promedio = calcularPromedioWeighted(
+                        e.calidad_entrega,
+                        e.evaluacion_usuario,
+                        e.cumplimiento_tiempo,
+                        e.reclamos,
+                        e.conveniencia_economica,
+                        e.compra_local
+                    );
+                    return promedio >= 4.5;
+                });
+
+                // 3. Contar consecutivas CONFIABLE (desde la más reciente)
+                let consecutivas = 0;
+                for (let i = 0; i < esConfiable.length; i++) {
+                    if (esConfiable[i]) {
+                        consecutivas++;
+                    } else {
+                        break; // Cortar si hay alguna que no sea CONFIABLE
+                    }
+                }
+
+                // 4. Calcular próxima evaluación recomendada
+                const mesUltima = evaluaciones[0]?.mes || '2026-07';
+                const [año, mes] = mesUltima.split('-');
+                let proximoAño = parseInt(año);
+                let proximoMes = parseInt(mes);
+
+                if (consecutivas >= 3) {
+                    // ANUAL: +12 meses
+                    proximoMes += 12;
+                } else {
+                    // SEMESTRAL: +6 meses
+                    proximoMes += 6;
+                }
+
+                while (proximoMes > 12) {
+                    proximoMes -= 12;
+                    proximoAño++;
+                }
+
+                const proximaEvaluacion = `${proximoAño}-${String(proximoMes).padStart(2, '0')}-01`;
+
+                // 5. Obtener o crear registro en seguimiento_proveedor
+                const { data: seguimiento } = await supabase
+                    .from('seguimiento_proveedor')
+                    .select('*')
+                    .eq('proveedor_id', proveedor_id)
+                    .single();
+
+                const frecuencia = consecutivas >= 3 ? 'ANUAL' : 'SEMESTRAL';
+                const cambioAAnualFecha = consecutivas >= 3 && !seguimiento?.cambio_a_anual_fecha ? new Date().toISOString().split('T')[0] : seguimiento?.cambio_a_anual_fecha;
+
+                if (seguimiento) {
+                    // Actualizar
+                    await supabase
+                        .from('seguimiento_proveedor')
+                        .update({
+                            frecuencia_evaluacion: frecuencia,
+                            consecutivas_confiable: consecutivas,
+                            ultima_evaluacion_confiable: esConfiable[0] ? mesUltima : seguimiento.ultima_evaluacion_confiable,
+                            cambio_a_anual_fecha: cambioAAnualFecha,
+                            proxima_evaluacion_recomendada: proximaEvaluacion,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('proveedor_id', proveedor_id);
+                } else {
+                    // Crear
+                    await supabase
+                        .from('seguimiento_proveedor')
+                        .insert([{
+                            proveedor_id,
+                            frecuencia_evaluacion: frecuencia,
+                            consecutivas_confiable: consecutivas,
+                            ultima_evaluacion_confiable: esConfiable[0] ? mesUltima : null,
+                            cambio_a_anual_fecha: cambioAAnualFecha,
+                            proxima_evaluacion_recomendada: proximaEvaluacion
+                        }]);
+                }
+
+                console.log(`✓ Seguimiento actualizado: ${consecutivas}/3 CONFIABLE, Frecuencia: ${frecuencia}`);
+            } catch (e) {
+                console.error('Error actualizando seguimiento:', e);
+            }
+        }
+
+        async function cargarSeguimientoProveedor(proveedor_id) {
+            try {
+                const { data: seguimiento } = await supabase
+                    .from('seguimiento_proveedor')
+                    .select('*')
+                    .eq('proveedor_id', proveedor_id)
+                    .single();
+
+                if (!seguimiento) return null;
+
+                // Obtener últimas 3 evaluaciones
+                const { data: evaluaciones } = await supabase
+                    .from('proveedor_scorecard')
+                    .select('*')
+                    .eq('proveedor_id', proveedor_id)
+                    .order('mes', { ascending: false })
+                    .limit(3);
+
+                // Calcular clasificación de cada una
+                const ultimasEvaluaciones = evaluaciones ? evaluaciones.map(e => {
+                    const promedio = calcularPromedioWeighted(
+                        e.calidad_entrega,
+                        e.evaluacion_usuario,
+                        e.cumplimiento_tiempo,
+                        e.reclamos,
+                        e.conveniencia_economica,
+                        e.compra_local
+                    );
+                    const clasificacion = promedio >= 4.5 ? 'CONFIABLE' : promedio >= 3.0 ? 'CONDICIONAL' : 'NO CONFIABLE';
+                    const emoji = promedio >= 4.5 ? '🟢' : promedio >= 3.0 ? '🟡' : '🔴';
+                    return {
+                        mes: e.mes,
+                        promedio: promedio.toFixed(2),
+                        clasificacion,
+                        emoji
+                    };
+                }).reverse() : [];
+
+                return {
+                    ...seguimiento,
+                    ultimasEvaluaciones
+                };
+            } catch (e) {
+                console.error('Error cargando seguimiento:', e);
+                return null;
+            }
+        }
+
+        async function cargarYMostrarSeguimiento(scorecardId, proveedor_id) {
+            try {
+                const seguimiento = await cargarSeguimientoProveedor(proveedor_id);
+                const elementId = `seguimiento-${scorecardId}`;
+                const elemento = document.getElementById(elementId);
+                
+                if (!elemento) return;
+
+                if (!seguimiento) {
+                    elemento.innerHTML = '<p style="color: #7f8c8d;">Sin datos de seguimiento</p>';
+                    return;
+                }
+
+                const { ultimasEvaluaciones, frecuencia_evaluacion, consecutivas_confiable, proxima_evaluacion_recomendada } = seguimiento;
+                const mesesPendientes = ultimasEvaluaciones.length;
+                const elegibleAnual = consecutivas_confiable >= 3;
+                const esAnual = frecuencia_evaluacion === 'ANUAL';
+
+                // Generar HTML de últimas evaluaciones
+                let htmlEvaluaciones = '';
+                if (ultimasEvaluaciones.length > 0) {
+                    htmlEvaluaciones = '<div style="margin: 10px 0; padding: 10px; background: white; border-radius: 6px; border-left: 4px solid #FFCC03;">';
+                    htmlEvaluaciones += '<strong>Últimas 3 Evaluaciones:</strong><br>';
+                    ultimasEvaluaciones.forEach(e => {
+                        htmlEvaluaciones += `${e.emoji} <strong>${e.mes}</strong>: ${e.promedio} - ${e.clasificacion}<br>`;
+                    });
+                    htmlEvaluaciones += '</div>';
+                }
+
+                // Generar barra de progreso
+                const barraAncho = (consecutivas_confiable / 3) * 100;
+                const htmlBarra = `
+                    <div style="margin: 10px 0;">
+                        <div style="font-size: 11px; font-weight: 600; margin-bottom: 5px;">Consecutivas CONFIABLE: <strong>${consecutivas_confiable}/3</strong></div>
+                        <div style="width: 100%; height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden;">
+                            <div style="width: ${barraAncho}%; height: 100%; background: ${barraAncho >= 100 ? '#27ae60' : '#f39c12'}; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
+                `;
+
+                // Generar estado y próxima evaluación
+                let htmlEstado = `
+                    <div style="margin: 10px 0; padding: 10px; background: ${esAnual ? '#d4edda' : '#fff3cd'}; border-radius: 6px; border-left: 4px solid ${esAnual ? '#27ae60' : '#f39c12'};">
+                        <div style="font-size: 11px; color: #666;">
+                            <strong>Frecuencia Actual:</strong> ${esAnual ? '📅 ANUAL' : '📆 SEMESTRAL'}<br>
+                            <strong>Próxima Evaluación:</strong> ${proxima_evaluacion_recomendada}
+                        </div>
+                    </div>
+                `;
+
+                // Generar botón/alerta
+                let htmlAccion = '';
+                if (elegibleAnual && !esAnual) {
+                    htmlAccion = `
+                        <div style="margin: 10px 0; padding: 10px; background: #d4edda; border-radius: 6px; border: 2px solid #27ae60;">
+                            <div style="font-weight: 700; color: #27ae60; margin-bottom: 8px;">✅ ¡ELEGIBLE PARA EVALUACIÓN ANUAL!</div>
+                            <p style="margin: 0 0 10px 0; font-size: 12px;">Ha cumplido 3 semestres consecutivos con clasificación CONFIABLE.</p>
+                            <button onclick="cambiarAEvaluacionAnual('${proveedor_id}')" style="padding: 8px 15px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">📅 Cambiar a Evaluación Anual</button>
+                        </div>
+                    `;
+                } else if (!elegibleAnual && !esAnual) {
+                    htmlAccion = `
+                        <div style="margin: 10px 0; padding: 10px; background: #fff3cd; border-radius: 6px; border: 1px solid #f39c12;">
+                            <div style="font-size: 12px; color: #856404;">
+                                ⚠️ Requiere seguimiento semestral. ${3 - consecutivas_confiable} evaluaciones CONFIABLE más para elegibilidad anual.
+                            </div>
+                        </div>
+                    `;
+                }
+
+                elemento.innerHTML = htmlEvaluaciones + htmlBarra + htmlEstado + htmlAccion;
+            } catch (e) {
+                console.error('Error mostrando seguimiento:', e);
+                const elemento = document.getElementById(`seguimiento-${scorecardId}`);
+                if (elemento) elemento.innerHTML = '<p style="color: red;">Error cargando seguimiento</p>';
+            }
+        }
+
+        async function cambiarAEvaluacionAnual(proveedor_id) {
+            if (!confirm('¿Cambiar este proveedor a evaluación ANUAL?\n\nSolo puede hacerse si tiene 3 semestres consecutivos CONFIABLE.')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('seguimiento_proveedor')
+                    .update({
+                        frecuencia_evaluacion: 'ANUAL',
+                        cambio_a_anual_fecha: new Date().toISOString().split('T')[0]
+                    })
+                    .eq('proveedor_id', proveedor_id);
+
+                if (error) {
+                    alert('Error: ' + error.message);
+                } else {
+                    alert('✓ Proveedor actualizado a evaluación ANUAL');
+                    loadScorecardTable();
+                }
+            } catch (e) {
+                alert('Error: ' + e.message);
             }
         }
 
@@ -1610,6 +1868,14 @@
                                 </div>
                             </div>
 
+                            <!-- SEGUIMIENTO SEMESTRAL -->
+                            <div style="padding: 15px; border-top: 1px solid #e0e0e0; background: #f0f8ff;">
+                                <div style="font-weight: 700; color: #504639; margin-bottom: 12px; font-size: 14px;">📊 Seguimiento Semestral</div>
+                                <div id="seguimiento-${s.id}" style="font-size: 12px; color: #2c3e50;">
+                                    <p style="margin: 10px 0; font-style: italic; color: #7f8c8d;">Cargando información...</p>
+                                </div>
+                            </div>
+
                             <!-- BOTONES -->
                             <div style="padding: 15px; border-top: 1px solid #e0e0e0; display: flex; gap: 10px; background: #f9f9f9;">
                                 <button class="btn-primary" onclick="prepareEditScorecard('${s.id}', '${s.proveedor_id}')" style="flex: 1; padding: 10px;">✏️ Editar</button>
@@ -1626,6 +1892,8 @@
             // Cargar gráficos para cada proveedor
             proveedoresFiltrados.forEach(s => {
                 setTimeout(() => cargarGraficoProveedor(s.proveedor_id), 100);
+                // Cargar seguimiento semestral
+                setTimeout(() => cargarYMostrarSeguimiento(s.id, s.proveedor_id), 150);
             });
         }
 

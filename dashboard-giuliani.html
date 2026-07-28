@@ -1311,60 +1311,6 @@
             return '#e74c3c'; // Naranja
         }
 
-        async function editScorecard(id) {
-            const { data } = await supabase.from('proveedor_scorecard').select('*').eq('id', id);
-            if (!data || data.length === 0) return;
-
-            const s = data[0];
-            document.getElementById('cumplimiento').value = s.cumplimiento_entrega;
-            document.getElementById('calidad').value = s.calidad;
-            document.getElementById('precio').value = s.precio_competitivo;
-            document.getElementById('cercania').value = s.cercania;
-            document.getElementById('notasProveedor').value = s.notas || '';
-
-            // Cambiar botón a "Actualizar"
-            const btn = document.querySelector('button[onclick="addScorecard()"]');
-            btn.textContent = 'Actualizar Evaluación';
-            btn.onclick = () => updateScorecard(id);
-
-            window.scrollTo(0, document.querySelector('.form-section').offsetTop - 100);
-        }
-
-        async function updateScorecard(id) {
-            const cumplimiento = parseInt(document.getElementById('cumplimiento').value);
-            const calidad = parseInt(document.getElementById('calidad').value);
-            const precio = parseInt(document.getElementById('precio').value);
-            const cercania = parseInt(document.getElementById('cercania').value);
-            const promedio = (cumplimiento + calidad + precio + cercania) / 4;
-
-            const { error } = await supabase.from('proveedor_scorecard').update({
-                cumplimiento_entrega: cumplimiento,
-                calidad,
-                precio_competitivo: precio,
-                cercania,
-                promedio,
-                notas: document.getElementById('notasProveedor').value
-            }).eq('id', id);
-
-            if (error) alert('Error: ' + error.message);
-            else {
-                alert('Evaluación actualizada');
-                loadScorecardTable();
-            }
-        }
-
-        async function deleteScorecard(id) {
-            if (!confirm('¿Eliminar esta evaluación?')) return;
-
-            const { error } = await supabase.from('proveedor_scorecard').delete().eq('id', id);
-
-            if (error) alert('Error: ' + error.message);
-            else {
-                alert('Evaluación eliminada');
-                loadScorecardTable();
-            }
-        }
-
         async function loadEvaluacionesPrevias() {
             const mesActual = document.getElementById('scorecardMonth').value;
             if (!mesActual) return;
@@ -1401,6 +1347,18 @@
             }
 
             loadScorecardTable();
+        }
+
+        async function deleteScorecard(id) {
+            if (!confirm('¿Eliminar esta evaluación?')) return;
+
+            const { error } = await supabase.from('proveedor_scorecard').delete().eq('id', id);
+
+            if (error) alert('Error: ' + error.message);
+            else {
+                alert('✓ Evaluación eliminada');
+                loadScorecardTable();
+            }
         }
 
         async function copiarTodasEvaluacionesAnterior() {
@@ -1515,61 +1473,267 @@
                 .select('*')
                 .eq('mes', mes);
             
-            let html = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
-                <thead>
-                    <tr style="background:#34495e; color:white;">
-                        <th style="padding:10px; text-align:left;">Proveedor</th>
-                        <th style="padding:10px; text-align:center;">Calidad</th>
-                        <th style="padding:10px; text-align:center;">Eval. Usuario</th>
-                        <th style="padding:10px; text-align:center;">Cump. Tiempo</th>
-                        <th style="padding:10px; text-align:center;">Reclamos</th>
-                        <th style="padding:10px; text-align:center;">Conv. Econ.</th>
-                        <th style="padding:10px; text-align:center;">Compra Local</th>
-                        <th style="padding:10px; text-align:center; background:#2c3e50;">Promedio</th>
-                        <th style="padding:10px; text-align:center; background:#2c3e50;">Calificación</th>
-                        <th style="padding:10px; text-align:center;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-            
-            if (scores && scores.length > 0) {
-                // Obtener datos de proveedores
-                const { data: provs } = await supabase.from('proveedores').select('*');
-                const provMap = {};
-                provs?.forEach(p => { provMap[p.id] = p.nombre; });
-
-                scores.sort((a, b) => {
-                    const promA = calcularPromedioWeighted(a.calidad_entrega, a.evaluacion_usuario, a.cumplimiento_tiempo, a.reclamos, a.conveniencia_economica, a.compra_local);
-                    const promB = calcularPromedioWeighted(b.calidad_entrega, b.evaluacion_usuario, b.cumplimiento_tiempo, b.reclamos, b.conveniencia_economica, b.compra_local);
-                    return promB - promA;
-                }).forEach(s => {
-                    const pName = provMap[s.proveedor_id] || 'N/A';
-                    const promedio = calcularPromedioWeighted(s.calidad_entrega, s.evaluacion_usuario, s.cumplimiento_tiempo, s.reclamos, s.conveniencia_economica, s.compra_local);
-                    const calificacion = getCalificacion(promedio);
-                    const color = getColorCalificacion(promedio);
-                    const c6Display = s.compra_local === null ? 'N/A' : s.compra_local;
-
-                    html += `<tr style="border-bottom:1px solid #ecf0f1;">
-                        <td style="padding:10px;">${pName}</td>
-                        <td style="padding:10px; text-align:center;">${s.calidad_entrega}</td>
-                        <td style="padding:10px; text-align:center;">${s.evaluacion_usuario}</td>
-                        <td style="padding:10px; text-align:center;">${s.cumplimiento_tiempo}</td>
-                        <td style="padding:10px; text-align:center;">${s.reclamos}</td>
-                        <td style="padding:10px; text-align:center;">${s.conveniencia_economica}</td>
-                        <td style="padding:10px; text-align:center;">${c6Display}</td>
-                        <td style="padding:10px; text-align:center; font-weight:600; background:#ecf0f1;">${promedio.toFixed(2)}</td>
-                        <td style="padding:10px; text-align:center; font-weight:600; color:white; background:${color}; border-radius:4px;">${calificacion}</td>
-                        <td style="padding:10px; text-align:center;">
-                            <button class="btn-secondary" onclick="editScorecard('${s.id}')" style="padding:6px 10px; font-size:11px;">Editar</button>
-                            <button class="btn-secondary" onclick="deleteScorecard('${s.id}')" style="padding:6px 10px; font-size:11px; margin-left:5px;">Eliminar</button>
-                        </td>
-                    </tr>`;
-                });
-            } else {
-                html += '<tr><td colspan="10" style="padding:20px; text-align:center; color:#7f8c8d;">Sin evaluaciones para este mes</td></tr>';
+            if (!scores || scores.length === 0) {
+                document.getElementById('proveedoresTable').innerHTML = 
+                    '<p style="padding:20px; text-align:center; color:#7f8c8d;">Sin evaluaciones para este mes</p>';
+                return;
             }
-            html += '</tbody></table>';
+
+            // Obtener datos de proveedores
+            const { data: provs } = await supabase.from('proveedores').select('*');
+            const provMap = {};
+            provs?.forEach(p => { provMap[p.id] = p; });
+
+            // Ordenar por promedio descendente
+            scores.sort((a, b) => {
+                const promA = calcularPromedioWeighted(a.calidad_entrega, a.evaluacion_usuario, a.cumplimiento_tiempo, a.reclamos, a.conveniencia_economica, a.compra_local);
+                const promB = calcularPromedioWeighted(b.calidad_entrega, b.evaluacion_usuario, b.cumplimiento_tiempo, b.reclamos, b.conveniencia_economica, b.compra_local);
+                return promB - promA;
+            });
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+
+            scores.forEach((s, idx) => {
+                const prov = provMap[s.proveedor_id];
+                const pName = prov?.nombre || 'N/A';
+                const promedio = calcularPromedioWeighted(s.calidad_entrega, s.evaluacion_usuario, s.cumplimiento_tiempo, s.reclamos, s.conveniencia_economica, s.compra_local);
+                const calificacion = getCalificacion(promedio);
+                const color = getColorCalificacion(promedio);
+
+                html += `
+                    <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                        <!-- HEADER EXPANDIBLE -->
+                        <div style="background: #f9f9f9; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;" onclick="toggleProveedor('prov-${s.id}')">
+                            <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+                                <span id="arrow-prov-${s.id}" style="color: #504639; font-weight: bold; font-size: 18px;">▶</span>
+                                <div>
+                                    <div style="font-weight: 700; color: #504639; font-size: 15px;">${pName}</div>
+                                    <div style="font-size: 12px; color: #7f8c8d;">${prov?.ciudad || ''} | ${prov?.email || ''}</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
+                                <div style="text-align: right;">
+                                    <div style="font-size: 14px; font-weight: 700; color: #2c3e50;">Promedio: ${promedio.toFixed(2)}</div>
+                                    <div style="font-size: 12px; color: #7f8c8d;">${calificacion}</div>
+                                </div>
+                                <div style="padding: 8px 15px; background: ${color}; color: white; border-radius: 6px; font-weight: 700; font-size: 13px;">${promedio >= 4.5 ? '🟢' : promedio >= 3.0 ? '🟡' : '🔴'} ${calificacion}</div>
+                            </div>
+                        </div>
+
+                        <!-- CONTENIDO EXPANDIBLE -->
+                        <div id="prov-${s.id}" style="display: none; border-top: 1px solid #e0e0e0;">
+                            <!-- TABLA DE CRITERIOS -->
+                            <div style="padding: 15px; background: #fafafa;">
+                                <div style="font-weight: 700; color: #504639; margin-bottom: 10px; font-size: 14px;">Evaluación ${mes}</div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
+                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Calidad Entrega (20%)</div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.calidad_entrega}</div>
+                                    </div>
+                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
+                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Evaluación Usuario (20%)</div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.evaluacion_usuario}</div>
+                                    </div>
+                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
+                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Cumplimiento Tiempo (10%)</div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.cumplimiento_tiempo}</div>
+                                    </div>
+                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
+                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Reclamos (10%)</div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.reclamos}</div>
+                                    </div>
+                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
+                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Conveniencia Econ. (30%)</div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.conveniencia_economica}</div>
+                                    </div>
+                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
+                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Compra Local (10%)</div>
+                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.compra_local === null ? 'N/A' : s.compra_local}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- GRÁFICO DE EVOLUCIÓN -->
+                            <div style="padding: 15px; border-top: 1px solid #e0e0e0;">
+                                <div style="font-weight: 700; color: #504639; margin-bottom: 12px; font-size: 14px;">📈 Evolución Histórica</div>
+                                <div style="height: 250px; margin-bottom: 10px;">
+                                    <canvas id="chart-prov-${s.proveedor_id}"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- BOTONES -->
+                            <div style="padding: 15px; border-top: 1px solid #e0e0e0; display: flex; gap: 10px; background: #f9f9f9;">
+                                <button class="btn-primary" onclick="prepareEditScorecard('${s.id}', '${s.proveedor_id}')" style="flex: 1; padding: 10px;">✏️ Editar</button>
+                                <button class="btn-secondary" onclick="deleteScorecard('${s.id}')" style="flex: 1; padding: 10px; background: #e74c3c; color: white; border: none;">🗑️ Eliminar</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
             document.getElementById('proveedoresTable').innerHTML = html;
+
+            // Cargar gráficos para cada proveedor
+            scores.forEach(s => {
+                setTimeout(() => cargarGraficoProveedor(s.proveedor_id), 100);
+            });
+        }
+
+        function toggleProveedor(proveedorId) {
+            const element = document.getElementById(proveedorId);
+            const arrow = document.getElementById(`arrow-${proveedorId}`);
+            
+            if (element.style.display === 'none') {
+                element.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                element.style.display = 'none';
+                arrow.textContent = '▶';
+            }
+        }
+
+        async function cargarGraficoProveedor(proveedorId) {
+            try {
+                const { data: historico } = await supabase
+                    .from('proveedor_scorecard')
+                    .select('*')
+                    .eq('proveedor_id', proveedorId)
+                    .order('mes', { ascending: true });
+
+                if (!historico || historico.length === 0) return;
+
+                const labels = historico.map(h => h.mes.substring(5, 7) + '/' + h.mes.substring(2, 4));
+                const promedios = historico.map(h => 
+                    calcularPromedioWeighted(h.calidad_entrega, h.evaluacion_usuario, h.cumplimiento_tiempo, h.reclamos, h.conveniencia_economica, h.compra_local)
+                );
+
+                const canvasId = `chart-prov-${proveedorId}`;
+                const canvas = document.getElementById(canvasId);
+                if (!canvas) return;
+
+                // Destruir gráfico anterior si existe
+                if (window[`chart_${proveedorId}`]) {
+                    window[`chart_${proveedorId}`].destroy();
+                }
+
+                window[`chart_${proveedorId}`] = new Chart(canvas.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels,
+                        datasets: [
+                            {
+                                label: 'Promedio Ponderado',
+                                data: promedios,
+                                borderColor: '#FFCC03',
+                                backgroundColor: 'rgba(255, 204, 3, 0.1)',
+                                borderWidth: 3,
+                                fill: true,
+                                tension: 0.4,
+                                pointRadius: 5,
+                                pointBackgroundColor: '#FFCC03',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                segment: {
+                                    borderColor: ctx => {
+                                        const val = ctx.p0DataIndex;
+                                        const color = promedios[val] >= 4.5 ? '#27ae60' : promedios[val] >= 3.0 ? '#f39c12' : '#e74c3c';
+                                        return color;
+                                    }
+                                }
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: true, position: 'top', labels: { font: { size: 12, weight: '600' } } }
+                        },
+                        scales: {
+                            y: { 
+                                beginAtZero: false,
+                                min: 1,
+                                max: 5,
+                                ticks: { font: { size: 11 } },
+                                grid: { color: 'rgba(0,0,0,0.05)' }
+                            },
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { size: 11 } }
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Error cargando gráfico:', e);
+            }
+        }
+
+        async function prepareEditScorecard(scorecardId, proveedorId) {
+            const { data } = await supabase.from('proveedor_scorecard').select('*').eq('id', scorecardId).single();
+            if (!data) return;
+
+            // Cargar valores en el formulario
+            document.getElementById('proveedorSelect').value = proveedorId;
+            document.getElementById('criterio1').value = data.calidad_entrega;
+            document.getElementById('criterio2').value = data.evaluacion_usuario;
+            document.getElementById('criterio3').value = data.cumplimiento_tiempo;
+            document.getElementById('criterio4').value = data.reclamos;
+            document.getElementById('criterio5').value = data.conveniencia_economica;
+            document.getElementById('criterio6').value = data.compra_local === null ? 'N/A' : data.compra_local;
+            document.getElementById('notasProveedor').value = data.notas || '';
+
+            // Cambiar botón a Actualizar
+            const btn = document.querySelector('button[onclick="addScorecard()"]');
+            const originalBtn = btn.cloneNode(true);
+            btn.textContent = '✏️ Actualizar Evaluación';
+            btn.onclick = () => updateScorecard(scorecardId, proveedorId);
+
+            // Scroll al formulario
+            window.scrollTo(0, document.querySelector('.form-section').offsetTop - 100);
+
+            // Guardar botón original
+            window.originalScorecardbtn = originalBtn;
+        }
+
+        async function updateScorecard(scorecardId, proveedorId) {
+            const c1 = parseInt(document.getElementById('criterio1').value);
+            const c2 = parseInt(document.getElementById('criterio2').value);
+            const c3 = parseInt(document.getElementById('criterio3').value);
+            const c4 = parseInt(document.getElementById('criterio4').value);
+            const c5 = parseInt(document.getElementById('criterio5').value);
+            const c6Raw = document.getElementById('criterio6').value;
+            const c6 = c6Raw === 'N/A' ? null : parseInt(c6Raw);
+
+            if (!c1 || !c2 || !c3 || !c4 || !c5) {
+                alert('Completa todos los criterios');
+                return;
+            }
+
+            const { error } = await supabase.from('proveedor_scorecard').update({
+                calidad_entrega: c1,
+                evaluacion_usuario: c2,
+                cumplimiento_tiempo: c3,
+                reclamos: c4,
+                conveniencia_economica: c5,
+                compra_local: c6,
+                notas: document.getElementById('notasProveedor').value
+            }).eq('id', scorecardId);
+
+            if (error) {
+                alert('Error: ' + error.message);
+            } else {
+                alert('✓ Evaluación actualizada');
+                
+                // Restaurar botón original
+                const btn = document.querySelector('button[onclick*="updateScorecard"]');
+                if (window.originalScorecardbtn) {
+                    btn.replaceWith(window.originalScorecardbtn);
+                }
+                
+                loadScorecardTable();
+            }
         }
 
         // ============ SECCIÓN STOCK ============

@@ -1360,11 +1360,12 @@
                 const proximaEvaluacion = `${proximoAño}-${String(proximoMes).padStart(2, '0')}-01`;
 
                 // 5. Obtener o crear registro en seguimiento_proveedor
-                const { data: seguimiento } = await supabase
-                    .from('seguimiento_proveedor')
-                    .select('*')
-                    .eq('proveedor_id', proveedor_id)
-                    .single();
+                const { data: seguimientoArray } = await supabase
+    .from('seguimiento_proveedor')
+    .select('*')
+    .eq('proveedor_id', proveedor_id);
+
+const seguimiento = seguimientoArray && seguimientoArray.length > 0 ? seguimientoArray[0] : null;
 
                 const frecuencia = consecutivas >= 3 ? 'ANUAL' : 'SEMESTRAL';
                 const cambioAAnualFecha = consecutivas >= 3 && !seguimiento?.cambio_a_anual_fecha ? new Date().toISOString().split('T')[0] : seguimiento?.cambio_a_anual_fecha;

@@ -544,8 +544,10 @@
                 <label>Mes Scorecard:</label>
                 <input type="month" id="scorecardMonth" value="">
                 <button onclick="copiarTodasEvaluacionesAnterior()" style="margin-left: 10px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">📋 Copiar todas del mes anterior</button>
+                <button onclick="recalcularTodoSeguimiento()" style="margin-left: 10px; padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔄 Recalcular Seguimiento</button>
                 <small style="color: #7f8c8d; display: block; margin-top: 5px;">💡 Al seleccionar un proveedor, se cargarán automáticamente sus evaluaciones del mes anterior</small>
                 <div id="statusCopiaTotal" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 13px; font-weight: 600;"></div>
+                <div id="statusRecalculo" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 13px; font-weight: 600;"></div>
             </div>
 
             <div class="form-section">
@@ -2045,6 +2047,59 @@
                     }
                 }
             });
+        }
+
+        async function recalcularTodoSeguimiento() {
+            const mes = document.getElementById('scorecardMonth').value;
+            if (!mes) {
+                alert('Selecciona un mes primero');
+                return;
+            }
+
+            const statusDiv = document.getElementById('statusRecalculo');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '⏳ Recalculando seguimiento...';
+            statusDiv.style.background = '#fff3cd';
+            statusDiv.style.color = '#856404';
+
+            try {
+                const { data: scores } = await supabase
+                    .from('proveedor_scorecard')
+                    .select('proveedor_id')
+                    .eq('mes', mes);
+
+                if (!scores || scores.length === 0) {
+                    statusDiv.innerHTML = '❌ No hay evaluaciones para recalcular en este mes';
+                    statusDiv.style.background = '#f8d7da';
+                    statusDiv.style.color = '#721c24';
+                    return;
+                }
+
+                // Obtener IDs únicos
+                const proveedoresUnicos = [...new Set(scores.map(s => s.proveedor_id))];
+
+                // Recalcular cada uno
+                let procesados = 0;
+                for (const provId of proveedoresUnicos) {
+                    await actualizarSeguimientoProveedor(provId);
+                    procesados++;
+                }
+
+                statusDiv.innerHTML = `✓ Seguimiento recalculado para ${procesados} proveedores del mes ${mes}`;
+                statusDiv.style.background = '#d4edda';
+                statusDiv.style.color = '#155724';
+
+                // Recargar tabla después de 1 segundo
+                setTimeout(() => {
+                    loadScorecardTable();
+                }, 1000);
+
+            } catch (e) {
+                console.error('Error recalculando:', e);
+                statusDiv.innerHTML = '❌ Error: ' + e.message;
+                statusDiv.style.background = '#f8d7da';
+                statusDiv.style.color = '#721c24';
+            }
         }
 
         // Listener para filtro en tiempo real

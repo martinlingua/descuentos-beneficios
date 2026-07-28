@@ -1377,10 +1377,10 @@
                         .update({
                             frecuencia_evaluacion: frecuencia,
                             consecutivas_confiable: consecutivas,
-                            ultima_evaluacion_confiable: esConfiable[0] ? mesUltima : seguimiento.ultima_evaluacion_confiable,
+                            ultima_evaluacion_confiable: esConfiable[0] ? mesUltima + '-01' : seguimiento?.ultima_evaluacion_confiable,
                             cambio_a_anual_fecha: cambioAAnualFecha,
                             proxima_evaluacion_recomendada: proximaEvaluacion,
-                            updated_at: new Date().toISOString()
+                            updated_at: new Date().toISOString().split('T')[0]
                         })
                         .eq('proveedor_id', proveedor_id);
                 } else {
@@ -1391,7 +1391,7 @@
                             proveedor_id,
                             frecuencia_evaluacion: frecuencia,
                             consecutivas_confiable: consecutivas,
-                            ultima_evaluacion_confiable: esConfiable[0] ? mesUltima : null,
+                            ultima_evaluacion_confiable: esConfiable[0] ? mesUltima + '-01' : null,
                             cambio_a_anual_fecha: cambioAAnualFecha,
                             proxima_evaluacion_recomendada: proximaEvaluacion
                         }]);

@@ -1657,26 +1657,87 @@
         }
 
         function loadStockTable(data) {
-            let html = '<table><thead><tr><th>Mes</th><th>Tipo</th><th>Stock ($)</th><th>Dólar</th><th>Stock (USD)</th><th>Acción</th></tr></thead><tbody>';
-            
-            if (data && data.length > 0) {
-                data.forEach(d => {
-                    const tipo = d.tipo === 'herrajes' ? '🔧 Herrajes' : '📦 Insumos';
-                    const stockUSD = d.stock_valor_pesos / (d.valor_dolar || 1);
-                    html += `<tr>
-                        <td>${d.mes}</td>
-                        <td>${tipo}</td>
-                        <td>$${formatNumber(d.stock_valor_pesos)}</td>
-                        <td>$${d.valor_dolar.toFixed(2)}</td>
-                        <td>USD $${formatNumber(stockUSD)}</td>
-                        <td><button class="btn-secondary" onclick="deleteStock('${d.id}')" style="padding: 6px 12px; font-size: 12px;">Eliminar</button></td>
-                    </tr>`;
-                });
-            } else {
-                html += '<tr><td colspan="6" class="no-data">Sin registros de stock</td></tr>';
+            if (!data || data.length === 0) {
+                document.getElementById('stockTable').innerHTML = '<p style="color: #999; padding: 20px;">Sin registros de stock</p>';
+                return;
             }
-            html += '</tbody></table>';
+
+            // Agrupar por año
+            const byYear = {};
+            data.forEach(d => {
+                const año = d.mes.split('-')[0];
+                if (!byYear[año]) byYear[año] = [];
+                byYear[año].push(d);
+            });
+
+            // Ordenar años descendentes
+            const años = Object.keys(byYear).sort().reverse();
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 10px;">';
+
+            años.forEach(año => {
+                const registros = byYear[año].sort((a, b) => b.mes.localeCompare(a.mes));
+                const total = registros.length;
+
+                html += `
+                    <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
+                        <div style="background: #f9f9f9; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;" onclick="toggleYear('year-${año}')">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span id="arrow-${año}" style="color: #504639; font-weight: bold;">▶</span>
+                                <span style="font-weight: 700; color: #504639; font-size: 16px;">${año}</span>
+                                <span style="background: #e0e0e0; padding: 3px 10px; border-radius: 20px; font-size: 12px; color: #7f8c8d;">${total} registros</span>
+                            </div>
+                            <span style="color: #79786D; font-size: 14px;">$${formatNumber(registros.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0))}</span>
+                        </div>
+                        
+                        <div id="year-${año}" style="display: none; border-top: 1px solid #e0e0e0;">
+                            <table style="width: 100%; font-size: 13px;">
+                                <thead>
+                                    <tr style="background: #f5f4f2; border-bottom: 2px solid #e0e0e0;">
+                                        <th style="padding: 10px; text-align: left; color: #504639; font-weight: 700;">Mes</th>
+                                        <th style="padding: 10px; text-align: left; color: #504639; font-weight: 700;">Tipo</th>
+                                        <th style="padding: 10px; text-align: right; color: #504639; font-weight: 700;">Stock ($)</th>
+                                        <th style="padding: 10px; text-align: right; color: #504639; font-weight: 700;">Dólar</th>
+                                        <th style="padding: 10px; text-align: right; color: #504639; font-weight: 700;">Stock (USD)</th>
+                                        <th style="padding: 10px; text-align: center; color: #504639; font-weight: 700;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${registros.map(d => {
+                                        const tipo = d.tipo === 'herrajes' ? '🔧 Herrajes' : '📦 Insumos';
+                                        const stockUSD = d.stock_valor_pesos / (d.valor_dolar || 1);
+                                        return `<tr style="border-bottom: 1px solid #eee; hover: background: #f9f9f9;">
+                                            <td style="padding: 10px; color: #2c3e50;">${d.mes}</td>
+                                            <td style="padding: 10px; color: #2c3e50;">${tipo}</td>
+                                            <td style="padding: 10px; text-align: right; color: #2c3e50;">$${formatNumber(d.stock_valor_pesos)}</td>
+                                            <td style="padding: 10px; text-align: right; color: #2c3e50;">$${d.valor_dolar.toFixed(2)}</td>
+                                            <td style="padding: 10px; text-align: right; color: #2c3e50;">USD $${formatNumber(stockUSD)}</td>
+                                            <td style="padding: 10px; text-align: center;"><button class="btn-secondary" onclick="deleteStock('${d.id}')" style="padding: 6px 10px; font-size: 11px;">🗑️</button></td>
+                                        </tr>`;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
             document.getElementById('stockTable').innerHTML = html;
+        }
+
+        function toggleYear(yearId) {
+            const element = document.getElementById(yearId);
+            const año = yearId.replace('year-', '');
+            const arrow = document.getElementById(`arrow-${año}`);
+            
+            if (element.style.display === 'none') {
+                element.style.display = 'block';
+                arrow.textContent = '▼';
+            } else {
+                element.style.display = 'none';
+                arrow.textContent = '▶';
+            }
         }
 
         async function deleteStock(id) {
@@ -1772,6 +1833,19 @@
                 return;
             }
 
+            // Declarar variables para que estén disponibles en ambos try blocks
+            let labels = [];
+            let herrajesActual = [];
+            let herrajesPasado = [];
+            let herrajesChangeVsPrevious = [];
+            let herrajesChangeVsYearAgo = [];
+            let insumosActual = [];
+            let insumosPasado = [];
+            let herrajesActualUSD = [];
+            let herrajesPasadoUSD = [];
+            let insumosActualUSD = [];
+            let insumosPasadoUSD = [];
+
             try {
                 // Obtener todos los meses disponibles
                 const meses = [...new Set(data.map(d => d.mes))].sort().reverse();
@@ -1798,36 +1872,36 @@
                 }
 
                 // Calcular datos para Herrajes (PESOS)
-                const herrajesActual = comparaciones.map(c => {
+                herrajesActual = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
-                const herrajesPasado = comparaciones.map(c => {
+                herrajesPasado = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'herrajes');
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
                 // Calcular datos para Insumos (PESOS)
-                const insumosActual = comparaciones.map(c => {
+                insumosActual = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
-                const insumosPasado = comparaciones.map(c => {
+                insumosPasado = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'insumos');
                     return monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                 });
 
                 // Calcular datos para Herrajes (USD)
-                const herrajesActualUSD = comparaciones.map(c => {
+                herrajesActualUSD = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'herrajes');
                     const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                     const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
                     return avgDolar > 0 ? pesos / avgDolar : 0;
                 });
 
-                const herrajesPasadoUSD = comparaciones.map(c => {
+                herrajesPasadoUSD = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'herrajes');
                     const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                     const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
@@ -1835,14 +1909,14 @@
                 });
 
                 // Calcular datos para Insumos (USD)
-                const insumosActualUSD = comparaciones.map(c => {
+                insumosActualUSD = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesActual && d.tipo === 'insumos');
                     const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                     const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
                     return avgDolar > 0 ? pesos / avgDolar : 0;
                 });
 
-                const insumosPasadoUSD = comparaciones.map(c => {
+                insumosPasadoUSD = comparaciones.map(c => {
                     const monthData = data.filter(d => d.mes === c.mesAnterior && d.tipo === 'insumos');
                     const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                     const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
@@ -1862,7 +1936,7 @@
                 };
 
                 // % de cambio vs mes anterior (solo Herrajes total)
-                const herrajesChangeVsPrevious = herrajesActual.map((actual, idx) => {
+                herrajesChangeVsPrevious = herrajesActual.map((actual, idx) => {
                     const mesActual = comparaciones[idx].mesActual;
                     const mesPrevio = getMonthBefore(mesActual);
                     const mesAnteriorData = data.filter(d => d.mes === mesPrevio && d.tipo === 'herrajes');
@@ -1872,13 +1946,13 @@
                 });
 
                 // % de cambio vs mismo mes año anterior
-                const herrajesChangeVsYearAgo = herrajesActual.map((actual, idx) => {
+                herrajesChangeVsYearAgo = herrajesActual.map((actual, idx) => {
                     const pasado = herrajesPasado[idx];
                     if (pasado === 0) return 0;
                     return ((actual - pasado) / pasado) * 100;
                 });
 
-                const labels = comparaciones.map(c => c.label);
+                labels = comparaciones.map(c => c.label);
 
                 // Gráfico Herrajes Comparativo (PESOS)
                 const herrajesCompElement = document.getElementById('herrajesCompChart');

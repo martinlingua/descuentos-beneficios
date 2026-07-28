@@ -752,7 +752,7 @@
 
             <!-- GRÁFICO DE % DE CAMBIO DE STOCK -->
             <div class="chart-container" style="margin-bottom: 30px; margin-top: 30px;">
-                <div class="chart-title">📊 % de Cambio de Stock (Herrajes) vs Períodos Anteriores</div>
+                <div class="chart-title">📉 Cambio de Stock (USD) - Mes Anterior | Verde = Reduce ↓ | Rojo = Aumenta ↑</div>
                 <div class="chart-canvas">
                     <canvas id="stockChangePercentChart"></canvas>
                 </div>
@@ -1935,21 +1935,43 @@
                     return `${año_anterior}-${String(mes_anterior).padStart(2, '0')}`;
                 };
 
-                // % de cambio vs mes anterior (solo Herrajes total)
+                // % de cambio vs mes anterior (en USD - Herrajes)
                 herrajesChangeVsPrevious = herrajesActual.map((actual, idx) => {
                     const mesActual = comparaciones[idx].mesActual;
                     const mesPrevio = getMonthBefore(mesActual);
+                    
+                    // Obtener USD actual
+                    const mesActualData = data.filter(d => d.mes === mesActual && d.tipo === 'herrajes');
+                    const avgDolarActual = mesActualData.length > 0 ? mesActualData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / mesActualData.length : 1;
+                    const actualUSD = avgDolarActual > 0 ? actual / avgDolarActual : 0;
+                    
+                    // Obtener USD anterior
                     const mesAnteriorData = data.filter(d => d.mes === mesPrevio && d.tipo === 'herrajes');
-                    const prevValue = mesAnteriorData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
-                    if (prevValue === 0) return 0;
-                    return ((actual - prevValue) / prevValue) * 100;
+                    const prevValuePesos = mesAnteriorData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolarAnterior = mesAnteriorData.length > 0 ? mesAnteriorData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / mesAnteriorData.length : 1;
+                    const prevUSD = avgDolarAnterior > 0 ? prevValuePesos / avgDolarAnterior : 0;
+                    
+                    if (prevUSD === 0) return 0;
+                    return ((actualUSD - prevUSD) / prevUSD) * 100;
                 });
 
-                // % de cambio vs mismo mes año anterior
+                // % de cambio vs mismo mes año anterior (en USD - Herrajes)
                 herrajesChangeVsYearAgo = herrajesActual.map((actual, idx) => {
-                    const pasado = herrajesPasado[idx];
-                    if (pasado === 0) return 0;
-                    return ((actual - pasado) / pasado) * 100;
+                    // Actual en USD
+                    const mesActual = comparaciones[idx].mesActual;
+                    const mesActualData = data.filter(d => d.mes === mesActual && d.tipo === 'herrajes');
+                    const avgDolarActual = mesActualData.length > 0 ? mesActualData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / mesActualData.length : 1;
+                    const actualUSD = avgDolarActual > 0 ? actual / avgDolarActual : 0;
+                    
+                    // Pasado en USD
+                    const mesAnterior = comparaciones[idx].mesAnterior;
+                    const mesAnteriorData = data.filter(d => d.mes === mesAnterior && d.tipo === 'herrajes');
+                    const pastoPesos = mesAnteriorData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    const avgDolarAnterior = mesAnteriorData.length > 0 ? mesAnteriorData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / mesAnteriorData.length : 1;
+                    const pasadoUSD = avgDolarAnterior > 0 ? pastoPesos / avgDolarAnterior : 0;
+                    
+                    if (pasadoUSD === 0) return 0;
+                    return ((actualUSD - pasadoUSD) / pasadoUSD) * 100;
                 });
 
                 labels = comparaciones.map(c => c.label);
@@ -2109,52 +2131,78 @@
                 console.error('Error creando gráficos comparativos:', e);
             }
 
-            // GRÁFICO DE % DE CAMBIO DE STOCK
+            // GRÁFICO DE % DE CAMBIO DE STOCK (EN USD)
             try {
                 const stockChangeElement = document.getElementById('stockChangePercentChart');
                 if (stockChangeElement) {
                     if (charts.stockChangeChart) charts.stockChangeChart.destroy();
+                    
+                    // Colores dinámicos: negativo (reducción) = VERDE, positivo (aumento) = ROJO
+                    const backgroundColors = herrajesChangeVsPrevious.map(val => {
+                        if (val < 0) return '#27ae60'; // Verde = reduce (bueno)
+                        else if (val > 0) return '#e74c3c'; // Rojo = aumenta (malo)
+                        else return '#95a5a6'; // Gris = sin cambio
+                    });
+                    
                     charts.stockChangeChart = new Chart(stockChangeElement.getContext('2d'), {
-                        type: 'line',
+                        type: 'bar',
                         data: {
                             labels,
                             datasets: [
                                 {
-                                    label: '% vs Mes Anterior',
+                                    label: '% Cambio Stock (USD) vs Mes Anterior',
                                     data: herrajesChangeVsPrevious,
-                                    borderColor: '#f39c12',
-                                    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                                    backgroundColor: backgroundColors,
+                                    borderColor: backgroundColors,
                                     borderWidth: 2,
-                                    fill: true,
-                                    tension: 0.4,
-                                    pointRadius: 4,
-                                    pointBackgroundColor: '#f39c12'
-                                },
-                                {
-                                    label: '% vs Mismo Mes Año Anterior',
-                                    data: herrajesChangeVsYearAgo,
-                                    borderColor: '#3498db',
-                                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                                    borderWidth: 2,
-                                    fill: false,
-                                    tension: 0.4,
-                                    pointRadius: 4,
-                                    pointBackgroundColor: '#3498db',
-                                    pointBorderColor: '#fff',
-                                    pointBorderWidth: 2
+                                    borderRadius: 6,
+                                    barThickness: 40
                                 }
                             ]
                         },
                         options: {
+                            indexAxis: 'x',
                             responsive: true,
                             maintainAspectRatio: false,
                             plugins: {
-                                legend: { display: true, position: 'top' }
+                                legend: { 
+                                    display: true, 
+                                    position: 'top',
+                                    labels: { padding: 20, font: { size: 14, weight: '700' } }
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const value = context.parsed.y;
+                                            const text = value < 0 ? '↓ Reduce' : value > 0 ? '↑ Aumenta' : '— Sin cambio';
+                                            return `${text}: ${value.toFixed(1)}%`;
+                                        }
+                                    },
+                                    backgroundColor: 'rgba(0,0,0,0.8)',
+                                    padding: 12,
+                                    titleFont: { size: 13, weight: '700' },
+                                    bodyFont: { size: 13 }
+                                }
                             },
                             scales: {
                                 y: { 
                                     beginAtZero: true,
-                                    title: { display: true, text: '% de Cambio' }
+                                    ticks: {
+                                        callback: function(value) {
+                                            return value + '%';
+                                        },
+                                        font: { size: 12, weight: '600' }
+                                    },
+                                    grid: { drawBorder: false, color: 'rgba(0,0,0,0.05)' },
+                                    title: { 
+                                        display: true, 
+                                        text: '% de Cambio USD (Herrajes)',
+                                        font: { size: 14, weight: '700' }
+                                    }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { font: { size: 12, weight: '600' } }
                                 }
                             }
                         }

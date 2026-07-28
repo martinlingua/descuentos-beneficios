@@ -545,6 +545,7 @@
                 <input type="month" id="scorecardMonth" value="">
                 <button onclick="copiarTodasEvaluacionesAnterior()" style="margin-left: 10px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">📋 Copiar todas del mes anterior</button>
                 <button onclick="recalcularTodoSeguimiento()" style="margin-left: 10px; padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔄 Recalcular Seguimiento</button>
+                <button onclick="toggleVerTodos()" id="btnVerTodos" style="margin-left: 10px; padding: 8px 16px; background: #9b59b6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">👁️ Ver TODOS los proveedores</button>
                 <small style="color: #7f8c8d; display: block; margin-top: 5px;">💡 Al seleccionar un proveedor, se cargarán automáticamente sus evaluaciones del mes anterior</small>
                 <div id="statusCopiaTotal" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 13px; font-weight: 600;"></div>
                 <div id="statusRecalculo" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 13px; font-weight: 600;"></div>
@@ -1765,67 +1766,33 @@
             const filtroTexto = (document.getElementById('filtroProveedor').value || '').toUpperCase();
             const filtroCategoria = window.filtroCategoria || 'TODOS';
             
-            // CAMBIO ÚNICO: Obtener TODOS los proveedores (no por mes)
+            // CAMBIO: Si verTodos es true, obtener TODAS las evaluaciones
+            let { data: scores } = await supabase
+                .from('proveedor_scorecard')
+                .select('*');
+            
+            // Si no está en modo "Ver TODOS", filtrar por mes
+            if (!window.verTodos) {
+                const mes = document.getElementById('scorecardMonth').value;
+                scores = scores.filter(s => s.mes === mes);
+            }
+            
+            if (!scores || scores.length === 0) {
+                document.getElementById('proveedoresTable').innerHTML = 
+                    '<p style="padding:20px; text-align:center; color:#7f8c8d;">' + 
+                    (window.verTodos ? 'Sin evaluaciones registradas' : 'Sin evaluaciones para este mes') + 
+                    '</p>';
+                return;
+            }
+
+            // Obtener datos de proveedores
             const { data: provs } = await supabase.from('proveedores').select('*');
-            if (!provs || provs.length === 0) {
-                document.getElementById('proveedoresTable').innerHTML = 
-                    '<p style="padding:20px; text-align:center; color:#7f8c8d;">No hay proveedores registrados</p>';
-                return;
-            }
-
-            // Obtener última evaluación de cada proveedor (de cualquier mes)
-            const { data: seguimientos } = await supabase.from('seguimiento_proveedor').select('*');
-            const segMap = {};
-            seguimientos?.forEach(s => { segMap[s.proveedor_id] = s; });
-
-            // Construir array "scores" con TODOS los proveedores + su data
-            const scores = await Promise.all(
-                provs.map(async (prov) => {
-                    const { data: ultimaEval } = await supabase
-                        .from('proveedor_scorecard')
-                        .select('*')
-                        .eq('proveedor_id', prov.id)
-                        .order('mes', { ascending: false })
-                        .limit(1);
-                    
-                    const seg = segMap[prov.id];
-                    const hoy = new Date().toISOString().split('T')[0];
-                    const necesitaEval = seg?.proxima_evaluacion_recomendada ? hoy >= seg.proxima_evaluacion_recomendada : false;
-                    
-                    // Si no tiene evaluación o necesita evaluación, incluir
-                    if (!ultimaEval || ultimaEval.length === 0 || necesitaEval) {
-                        return {
-                            id: (ultimaEval?.[0]?.id || prov.id),
-                            proveedor_id: prov.id,
-                            calidad_entrega: ultimaEval?.[0]?.calidad_entrega || 0,
-                            evaluacion_usuario: ultimaEval?.[0]?.evaluacion_usuario || 0,
-                            cumplimiento_tiempo: ultimaEval?.[0]?.cumplimiento_tiempo || 0,
-                            reclamos: ultimaEval?.[0]?.reclamos || 0,
-                            conveniencia_economica: ultimaEval?.[0]?.conveniencia_economica || 0,
-                            compra_local: ultimaEval?.[0]?.compra_local || null,
-                            mes: ultimaEval?.[0]?.mes || 'Sin eval',
-                            _provNombre: prov.nombre,
-                            _provCiudad: prov.ciudad,
-                            _provEmail: prov.email,
-                            _segData: seg
-                        };
-                    }
-                    return null;
-                })
-            );
-
-            // Filtrar nulls
-            const filteredScores = scores.filter(s => s !== null);
-
-            if (!filteredScores || filteredScores.length === 0) {
-                document.getElementById('proveedoresTable').innerHTML = 
-                    '<p style="padding:20px; text-align:center; color:#7f8c8d;">No hay proveedores a evaluar</p>';
-                return;
-            }
+            const provMap = {};
+            provs?.forEach(p => { provMap[p.id] = p; });
 
             // Clasificar cada proveedor (CRÍTICO, PENDIENTE, SEMESTRE, AÑO)
             const scorasConCategoria = await Promise.all(
-                filteredScores.map(async (s) => {
+                scores.map(async (s) => {
                     const categoria = await clasificarProveedor(s.proveedor_id);
                     return { ...s, categoria };
                 })
@@ -1841,8 +1808,8 @@
                 const promB = calcularPromedioWeighted(b.calidad_entrega, b.evaluacion_usuario, b.cumplimiento_tiempo, b.reclamos, b.conveniencia_economica, b.compra_local);
                 
                 if (Math.abs(promA - promB) < 0.01) {
-                    const nomA = (a._provNombre || 'Z').toUpperCase();
-                    const nomB = (b._provNombre || 'Z').toUpperCase();
+                    const nomA = (provMap[a.proveedor_id]?.nombre || 'Z').toUpperCase();
+                    const nomB = (provMap[b.proveedor_id]?.nombre || 'Z').toUpperCase();
                     return nomA.localeCompare(nomB);
                 }
                 return promB - promA;
@@ -1854,7 +1821,7 @@
             // Filtro de búsqueda
             if (filtroTexto) {
                 proveedoresFiltrados = proveedoresFiltrados.filter(s => {
-                    const pName = (s._provNombre || '').toUpperCase();
+                    const pName = (provMap[s.proveedor_id]?.nombre || '').toUpperCase();
                     return pName.includes(filtroTexto);
                 });
             }
@@ -1882,9 +1849,8 @@
             };
 
             proveedoresFiltrados.forEach((s, idx) => {
-                const pName = s._provNombre || 'N/A';
-                const ciudad = s._provCiudad || '';
-                const email = s._provEmail || '';
+                const prov = provMap[s.proveedor_id];
+                const pName = prov?.nombre || 'N/A';
                 const promedio = calcularPromedioWeighted(s.calidad_entrega, s.evaluacion_usuario, s.cumplimiento_tiempo, s.reclamos, s.conveniencia_economica, s.compra_local);
                 const calificacion = getCalificacion(promedio);
                 const color = getColorCalificacion(promedio);
@@ -1903,7 +1869,7 @@
                                 <span id="arrow-prov-${s.id}" style="color: #504639; font-weight: bold; font-size: 18px;">▶</span>
                                 <div>
                                     <div style="font-weight: 700; color: #504639; font-size: 15px;">${pName}</div>
-                                    <div style="font-size: 12px; color: #7f8c8d;">${ciudad} | ${email}</div>
+                                    <div style="font-size: 12px; color: #7f8c8d;">${prov?.ciudad || ''} | ${prov?.email || ''}</div>
                                 </div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 15px;">
@@ -2142,6 +2108,22 @@
                 statusDiv.style.background = '#f8d7da';
                 statusDiv.style.color = '#721c24';
             }
+        }
+
+        // Variable global para ver TODOS
+        window.verTodos = false;
+
+        function toggleVerTodos() {
+            window.verTodos = !window.verTodos;
+            const btn = document.getElementById('btnVerTodos');
+            if (window.verTodos) {
+                btn.style.background = '#e74c3c';
+                btn.textContent = '👁️ Ver SOLO mes actual';
+            } else {
+                btn.style.background = '#9b59b6';
+                btn.textContent = '👁️ Ver TODOS los proveedores';
+            }
+            loadScorecardTable();
         }
 
         // Listener para filtro en tiempo real

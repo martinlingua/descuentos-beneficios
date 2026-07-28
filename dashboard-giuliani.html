@@ -680,6 +680,25 @@
                 <input type="month" id="stockViewMes" onchange="loadStockForMonth()">
             </div>
 
+            <!-- META DE STOCK (REDUCCIÓN) -->
+            <div class="form-section" style="margin-bottom: 25px; background: #f9f9f9; padding: 15px; border-radius: 8px; border-left: 4px solid var(--giuliani-amarillo);">
+                <div class="form-title" style="font-size: 14px; font-weight: 700; margin-bottom: 12px;">📊 Meta de Reducción de Stock para este Mes</div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr auto;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Meta % Reducción:</label>
+                        <input type="number" id="metaReduccionStock" step="0.1" min="0" max="100" placeholder="Ej: 5" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Notas (opcional):</label>
+                        <input type="text" id="notasMetaStock" placeholder="Ej: Limpiar stock obsoleto" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display: flex; align-items: flex-end; gap: 10px;">
+                        <button class="btn-primary" onclick="guardarMetaStock()" style="margin: 0; padding: 10px 20px; font-size: 13px;">💾 Guardar Meta</button>
+                    </div>
+                </div>
+                <div id="statusMetaStock" style="margin-top: 10px; font-size: 12px; color: #7f8c8d;"></div>
+            </div>
+
             <!-- KPI CARDS -->
             <div class="kpi-grid">
                 <div class="kpi-card herrajes">
@@ -728,6 +747,14 @@
                     <div class="chart-canvas">
                         <canvas id="insumosCompUSDChart"></canvas>
                     </div>
+                </div>
+            </div>
+
+            <!-- GRÁFICO DE % DE CAMBIO DE STOCK -->
+            <div class="chart-container" style="margin-bottom: 30px; margin-top: 30px;">
+                <div class="chart-title">📊 % de Cambio de Stock (Herrajes) vs Períodos Anteriores</div>
+                <div class="chart-canvas">
+                    <canvas id="stockChangePercentChart"></canvas>
                 </div>
             </div>
 
@@ -1624,6 +1651,9 @@
             const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
             const totalUSD = (herrajesTotal + insumosTotal) / avgDolar;
             document.getElementById('stockTotalUSD').textContent = 'USD $' + formatNumber(totalUSD);
+
+            // Cargar meta de stock para este mes
+            await cargarMetaStock();
         }
 
         function loadStockTable(data) {
@@ -1661,7 +1691,80 @@
             }
         }
 
+        // ============ FUNCIONES PARA META DE STOCK ============
+        async function guardarMetaStock() {
+            const mes = document.getElementById('stockViewMes').value;
+            const metaReduccion = parseFloat(document.getElementById('metaReduccionStock').value) || 5;
+            const notas = document.getElementById('notasMetaStock').value;
+
+            if (!mes) {
+                alert('Selecciona un mes primero');
+                return;
+            }
+
+            try {
+                // Intentar actualizar si existe, si no crear
+                const { data: existing } = await supabase
+                    .from('stock_metas')
+                    .select('id')
+                    .eq('mes', mes);
+
+                if (existing && existing.length > 0) {
+                    // Actualizar
+                    const { error } = await supabase
+                        .from('stock_metas')
+                        .update({ meta_reduccion_porcentaje: metaReduccion, notas })
+                        .eq('mes', mes);
+                    if (error) throw error;
+                } else {
+                    // Crear
+                    const { error } = await supabase
+                        .from('stock_metas')
+                        .insert([{ mes, meta_reduccion_porcentaje: metaReduccion, notas }]);
+                    if (error) throw error;
+                }
+
+                alert('✓ Meta guardada para ' + mes);
+                await cargarMetaStock();
+                loadComparisonCharts(stockDataGlobal);
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+        }
+
+        async function cargarMetaStock() {
+            const mes = document.getElementById('stockViewMes').value;
+
+            if (!mes) return;
+
+            try {
+                const { data } = await supabase
+                    .from('stock_metas')
+                    .select('*')
+                    .eq('mes', mes)
+                    .single();
+
+                if (data) {
+                    document.getElementById('metaReduccionStock').value = data.meta_reduccion_porcentaje || 5;
+                    document.getElementById('notasMetaStock').value = data.notas || '';
+                    document.getElementById('statusMetaStock').innerHTML = 
+                        `<span style="color: #27ae60;">✓ Meta guardada: ${data.meta_reduccion_porcentaje}% de reducción</span>`;
+                } else {
+                    document.getElementById('metaReduccionStock').value = 5;
+                    document.getElementById('notasMetaStock').value = '';
+                    document.getElementById('statusMetaStock').innerHTML = 
+                        `<span style="color: #e74c3c;">⚠ Sin meta guardada para este mes</span>`;
+                }
+            } catch (e) {
+                document.getElementById('statusMetaStock').innerHTML = 
+                    `<span style="color: #f39c12;">ℹ Tabla de metas aún no creada. Ejecuta SQL_STOCK_METAS.txt</span>`;
+            }
+        }
+
+        let stockDataGlobal = [];
+
         function loadComparisonCharts(data) {
+            stockDataGlobal = data;
             console.log('loadComparisonCharts called with data:', data ? data.length : 0, 'items');
             
             if (!data || data.length === 0) {
@@ -1744,6 +1847,35 @@
                     const pesos = monthData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
                     const avgDolar = monthData.length > 0 ? monthData.reduce((s, d) => s + (d.valor_dolar || 1), 0) / monthData.length : 1;
                     return avgDolar > 0 ? pesos / avgDolar : 0;
+                });
+
+                // CALCULAR % DE CAMBIO
+                const getMonthBefore = (mes) => {
+                    const [año, mes_num] = mes.split('-');
+                    let mes_anterior = parseInt(mes_num) - 1;
+                    let año_anterior = parseInt(año);
+                    if (mes_anterior < 1) {
+                        mes_anterior = 12;
+                        año_anterior--;
+                    }
+                    return `${año_anterior}-${String(mes_anterior).padStart(2, '0')}`;
+                };
+
+                // % de cambio vs mes anterior (solo Herrajes total)
+                const herrajesChangeVsPrevious = herrajesActual.map((actual, idx) => {
+                    const mesActual = comparaciones[idx].mesActual;
+                    const mesPrevio = getMonthBefore(mesActual);
+                    const mesAnteriorData = data.filter(d => d.mes === mesPrevio && d.tipo === 'herrajes');
+                    const prevValue = mesAnteriorData.reduce((s, d) => s + (d.stock_valor_pesos || 0), 0);
+                    if (prevValue === 0) return 0;
+                    return ((actual - prevValue) / prevValue) * 100;
+                });
+
+                // % de cambio vs mismo mes año anterior
+                const herrajesChangeVsYearAgo = herrajesActual.map((actual, idx) => {
+                    const pasado = herrajesPasado[idx];
+                    if (pasado === 0) return 0;
+                    return ((actual - pasado) / pasado) * 100;
                 });
 
                 const labels = comparaciones.map(c => c.label);
@@ -1901,6 +2033,61 @@
                 }
             } catch (e) {
                 console.error('Error creando gráficos comparativos:', e);
+            }
+
+            // GRÁFICO DE % DE CAMBIO DE STOCK
+            try {
+                const stockChangeElement = document.getElementById('stockChangePercentChart');
+                if (stockChangeElement) {
+                    if (charts.stockChangeChart) charts.stockChangeChart.destroy();
+                    charts.stockChangeChart = new Chart(stockChangeElement.getContext('2d'), {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: '% vs Mes Anterior',
+                                    data: herrajesChangeVsPrevious,
+                                    borderColor: '#f39c12',
+                                    backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                                    borderWidth: 2,
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#f39c12'
+                                },
+                                {
+                                    label: '% vs Mismo Mes Año Anterior',
+                                    data: herrajesChangeVsYearAgo,
+                                    borderColor: '#3498db',
+                                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                                    borderWidth: 2,
+                                    fill: false,
+                                    tension: 0.4,
+                                    pointRadius: 4,
+                                    pointBackgroundColor: '#3498db',
+                                    pointBorderColor: '#fff',
+                                    pointBorderWidth: 2
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: true, position: 'top' }
+                            },
+                            scales: {
+                                y: { 
+                                    beginAtZero: true,
+                                    title: { display: true, text: '% de Cambio' }
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Error creando gráfico de % cambio:', e);
             }
         }
 

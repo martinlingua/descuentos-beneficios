@@ -649,6 +649,19 @@
                     </div>
                     <div style="font-size: 11px; color: #7f8c8d; margin-top: 8px;">💡 Escribe el nombre o parte del nombre para filtrar</div>
                 </div>
+
+                <!-- FILTROS POR CATEGORÍA DE URGENCIA -->
+                <div style="padding: 15px; background: white; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-size: 12px; font-weight: 600; color: #504639; margin-bottom: 10px;">📊 Filtrar por Urgencia:</div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="filtrarPorCategoria('TODOS')" id="btn-TODOS" style="padding: 8px 15px; background: #f5f4f2; color: #504639; border: 2px solid #FFCC03; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">📋 Todos</button>
+                        <button onclick="filtrarPorCategoria('CRÍTICO')" id="btn-CRÍTICO" style="padding: 8px 15px; background: #e74c3c; color: white; border: 2px solid #c0392b; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">🔴 Crítico</button>
+                        <button onclick="filtrarPorCategoria('PENDIENTE')" id="btn-PENDIENTE" style="padding: 8px 15px; background: #f39c12; color: white; border: 2px solid #d68910; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">🟡 Pendiente</button>
+                        <button onclick="filtrarPorCategoria('SEMESTRE')" id="btn-SEMESTRE" style="padding: 8px 15px; background: #e67e22; color: white; border: 2px solid #d35400; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">🟠 Próx. 6 meses</button>
+                        <button onclick="filtrarPorCategoria('AÑO')" id="btn-AÑO" style="padding: 8px 15px; background: #27ae60; color: white; border: 2px solid #229954; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px;">🟢 Próx. 12 meses</button>
+                    </div>
+                </div>
+
                 <div id="proveedoresTable"></div>
             </div>
         </div>
@@ -1749,6 +1762,7 @@
         async function loadScorecardTable() {
             const mes = document.getElementById('scorecardMonth').value;
             const filtroTexto = (document.getElementById('filtroProveedor').value || '').toUpperCase();
+            const filtroCategoria = window.filtroCategoria || 'TODOS';
             
             const { data: scores } = await supabase
                 .from('proveedor_scorecard')
@@ -1766,37 +1780,63 @@
             const provMap = {};
             provs?.forEach(p => { provMap[p.id] = p; });
 
-            // ORDENAR: primero por promedio descendente, luego alfabéticamente por nombre
-            scores.sort((a, b) => {
+            // Clasificar cada proveedor (CRÍTICO, PENDIENTE, SEMESTRE, AÑO)
+            const scorasConCategoria = await Promise.all(
+                scores.map(async (s) => {
+                    const categoria = await clasificarProveedor(s.proveedor_id);
+                    return { ...s, categoria };
+                })
+            );
+
+            // ORDENAR: primero por categoría (CRÍTICO > PENDIENTE > SEMESTRE > AÑO), luego por promedio
+            const ordenCategoria = { 'CRÍTICO': 0, 'PENDIENTE': 1, 'SEMESTRE': 2, 'AÑO': 3 };
+            scorasConCategoria.sort((a, b) => {
+                const catOrder = ordenCategoria[a.categoria] - ordenCategoria[b.categoria];
+                if (catOrder !== 0) return catOrder;
+
                 const promA = calcularPromedioWeighted(a.calidad_entrega, a.evaluacion_usuario, a.cumplimiento_tiempo, a.reclamos, a.conveniencia_economica, a.compra_local);
                 const promB = calcularPromedioWeighted(b.calidad_entrega, b.evaluacion_usuario, b.cumplimiento_tiempo, b.reclamos, b.conveniencia_economica, b.compra_local);
                 
-                // Si promedios son iguales (ej: 4.75), ordenar alfabéticamente
                 if (Math.abs(promA - promB) < 0.01) {
                     const nomA = (provMap[a.proveedor_id]?.nombre || 'Z').toUpperCase();
                     const nomB = (provMap[b.proveedor_id]?.nombre || 'Z').toUpperCase();
                     return nomA.localeCompare(nomB);
                 }
-                // Si promedios diferentes, por promedio descendente
                 return promB - promA;
             });
 
-            // APLICAR FILTRO
-            let proveedoresFiltrados = scores;
+            // APLICAR FILTROS (búsqueda + categoría)
+            let proveedoresFiltrados = scorasConCategoria;
+            
+            // Filtro de búsqueda
             if (filtroTexto) {
-                proveedoresFiltrados = scores.filter(s => {
+                proveedoresFiltrados = proveedoresFiltrados.filter(s => {
                     const pName = (provMap[s.proveedor_id]?.nombre || '').toUpperCase();
                     return pName.includes(filtroTexto);
                 });
             }
 
+            // Filtro de categoría
+            if (filtroCategoria !== 'TODOS') {
+                proveedoresFiltrados = proveedoresFiltrados.filter(s => s.categoria === filtroCategoria);
+            }
+
             if (proveedoresFiltrados.length === 0) {
+                const msgFiltro = filtroTexto ? `"<strong>${document.getElementById('filtroProveedor').value}</strong>"` : 'en esta categoría';
                 document.getElementById('proveedoresTable').innerHTML = 
-                    `<p style="padding:20px; text-align:center; color:#7f8c8d;">❌ No se encontraron proveedores que coincidan con "<strong>${document.getElementById('filtroProveedor').value}</strong>"</p>`;
+                    `<p style="padding:20px; text-align:center; color:#7f8c8d;">❌ No se encontraron proveedores ${msgFiltro}</p>`;
                 return;
             }
 
             let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+
+            // Mapeo de categoría a color y emoji
+            const categoriaStyle = {
+                'CRÍTICO': { color: '#e74c3c', emoji: '🔴', label: 'CRÍTICO' },
+                'PENDIENTE': { color: '#f39c12', emoji: '🟡', label: 'PENDIENTE' },
+                'SEMESTRE': { color: '#e67e22', emoji: '🟠', label: 'PRÓX. 6 MESES' },
+                'AÑO': { color: '#27ae60', emoji: '🟢', label: 'PRÓX. 12 MESES' }
+            };
 
             proveedoresFiltrados.forEach((s, idx) => {
                 const prov = provMap[s.proveedor_id];
@@ -1804,7 +1844,12 @@
                 const promedio = calcularPromedioWeighted(s.calidad_entrega, s.evaluacion_usuario, s.cumplimiento_tiempo, s.reclamos, s.conveniencia_economica, s.compra_local);
                 const calificacion = getCalificacion(promedio);
                 const color = getColorCalificacion(promedio);
-                const emoji = promedio >= 4.5 ? '🟢' : promedio >= 3.0 ? '🟡' : '🔴';
+                
+                // Usar categoría como badge principal (más importante que calificación)
+                const catStyle = categoriaStyle[s.categoria] || categoriaStyle['PENDIENTE'];
+                const badgeColor = catStyle.color;
+                const badgeEmoji = catStyle.emoji;
+                const badgeLabel = catStyle.label;
 
                 html += `
                     <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
@@ -1822,7 +1867,11 @@
                                     <div style="font-size: 14px; font-weight: 700; color: #2c3e50;">Promedio: ${promedio.toFixed(2)}</div>
                                     <div style="font-size: 12px; color: #7f8c8d;">${calificacion}</div>
                                 </div>
-                                <div style="padding: 8px 15px; background: ${color}; color: white; border-radius: 6px; font-weight: 700; font-size: 13px;">${emoji} ${calificacion}</div>
+                                <div style="display: flex; flex-direction: column; gap: 6px;">
+                                    <div style="padding: 6px 12px; background: ${badgeColor}; color: white; border-radius: 6px; font-weight: 700; font-size: 11px; text-align: center;">${badgeEmoji} ${badgeLabel}</div>
+                                    <div style="padding: 6px 12px; background: ${color}; color: white; border-radius: 6px; font-weight: 700; font-size: 11px; text-align: center;">${calificacion}</div>
+                                </div>
+                            </div>
                             </div>
                         </div>
 
@@ -1911,7 +1960,91 @@
 
         function limpiarFiltro() {
             document.getElementById('filtroProveedor').value = '';
+            window.filtroCategoria = 'TODOS';
+            actualizarBotonesFiltro();
             loadScorecardTable();
+        }
+
+        // Variable global para filtro de categoría
+        window.filtroCategoria = 'TODOS';
+
+        async function clasificarProveedor(proveedor_id) {
+            try {
+                // Obtener últimas 3 evaluaciones
+                const { data: evaluaciones } = await supabase
+                    .from('proveedor_scorecard')
+                    .select('*')
+                    .eq('proveedor_id', proveedor_id)
+                    .order('mes', { ascending: false })
+                    .limit(3);
+
+                if (!evaluaciones || evaluaciones.length === 0) {
+                    return 'PENDIENTE'; // Sin evaluaciones = pendiente
+                }
+
+                // Calcular clasificación de cada una
+                const clasificaciones = evaluaciones.map(e => {
+                    const promedio = calcularPromedioWeighted(
+                        e.calidad_entrega,
+                        e.evaluacion_usuario,
+                        e.cumplimiento_tiempo,
+                        e.reclamos,
+                        e.conveniencia_economica,
+                        e.compra_local
+                    );
+                    return promedio >= 4.5 ? 'CONFIABLE' : promedio >= 3.0 ? 'CONDICIONAL' : 'NO CONFIABLE';
+                });
+
+                // Contar CONFIABLE consecutivas desde la más reciente
+                let consecutivas = 0;
+                for (let i = 0; i < clasificaciones.length; i++) {
+                    if (clasificaciones[i] === 'CONFIABLE') {
+                        consecutivas++;
+                    } else {
+                        break;
+                    }
+                }
+
+                // Determinar categoría
+                if (clasificaciones.includes('NO CONFIABLE')) {
+                    return 'CRÍTICO'; // Si hay NO CONFIABLE en últimas 3
+                } else if (evaluaciones.length < 3) {
+                    return 'PENDIENTE'; // Menos de 3 evaluaciones
+                } else if (clasificaciones.includes('CONDICIONAL')) {
+                    return 'PENDIENTE'; // Si hay CONDICIONAL
+                } else if (consecutivas >= 3) {
+                    return 'AÑO'; // 3 CONFIABLE consecutivas
+                } else if (consecutivas > 0) {
+                    return 'SEMESTRE'; // 1-2 CONFIABLE pero no 3
+                }
+
+                return 'PENDIENTE'; // Default
+            } catch (e) {
+                console.error('Error clasificando proveedor:', e);
+                return 'PENDIENTE';
+            }
+        }
+
+        function filtrarPorCategoria(categoria) {
+            window.filtroCategoria = categoria;
+            actualizarBotonesFiltro();
+            loadScorecardTable();
+        }
+
+        function actualizarBotonesFiltro() {
+            const botones = ['TODOS', 'CRÍTICO', 'PENDIENTE', 'SEMESTRE', 'AÑO'];
+            botones.forEach(btn => {
+                const elemento = document.getElementById(`btn-${btn}`);
+                if (elemento) {
+                    if (btn === window.filtroCategoria) {
+                        elemento.style.opacity = '1';
+                        elemento.style.boxShadow = '0 0 10px rgba(0,0,0,0.2)';
+                    } else {
+                        elemento.style.opacity = '0.6';
+                        elemento.style.boxShadow = 'none';
+                    }
+                }
+            });
         }
 
         // Listener para filtro en tiempo real
@@ -1922,6 +2055,7 @@
                     loadScorecardTable();
                 });
             }
+            actualizarBotonesFiltro();
         });
 
         function toggleProveedor(proveedorId) {

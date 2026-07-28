@@ -545,7 +545,6 @@
                 <input type="month" id="scorecardMonth" value="">
                 <button onclick="copiarTodasEvaluacionesAnterior()" style="margin-left: 10px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">📋 Copiar todas del mes anterior</button>
                 <button onclick="recalcularTodoSeguimiento()" style="margin-left: 10px; padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">🔄 Recalcular Seguimiento</button>
-                <button onclick="toggleVerTodos()" id="btnVerTodos" style="margin-left: 10px; padding: 8px 16px; background: #9b59b6; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">👁️ Ver TODOS los proveedores</button>
                 <small style="color: #7f8c8d; display: block; margin-top: 5px;">💡 Al seleccionar un proveedor, se cargarán automáticamente sus evaluaciones del mes anterior</small>
                 <div id="statusCopiaTotal" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 13px; font-weight: 600;"></div>
                 <div id="statusRecalculo" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 13px; font-weight: 600;"></div>
@@ -1766,319 +1765,115 @@
             const filtroTexto = (document.getElementById('filtroProveedor').value || '').toUpperCase();
             const filtroCategoria = window.filtroCategoria || 'TODOS';
             
-            // SI ESTÁ EN MODO "VER TODOS"
-            if (window.verTodos) {
-                // Obtener TODOS los proveedores
-                const { data: provs } = await supabase.from('proveedores').select('*');
-                if (!provs || provs.length === 0) {
-                    document.getElementById('proveedoresTable').innerHTML = 
-                        '<p style="padding:20px; text-align:center; color:#7f8c8d;">No hay proveedores registrados</p>';
-                    return;
-                }
-
-                // Obtener datos de seguimiento
-                const { data: segs } = await supabase.from('seguimiento_proveedor').select('*');
-                const segMap = {};
-                segs?.forEach(s => { segMap[s.proveedor_id] = s; });
-
-                // Armar array con TODOS los proveedores
-                const proveedoresConData = await Promise.all(
-                    provs.map(async (prov) => {
-                        const categoria = await clasificarProveedor(prov.id);
-                        const seg = segMap[prov.id];
-                        const { data: ultimaEval } = await supabase
-                            .from('proveedor_scorecard')
-                            .select('*')
-                            .eq('proveedor_id', prov.id)
-                            .order('mes', { ascending: false })
-                            .limit(1);
-                        
-                        return {
-                            id: ultimaEval?.[0]?.id || prov.id,
-                            proveedor_id: prov.id,
-                            calidad_entrega: ultimaEval?.[0]?.calidad_entrega || 0,
-                            evaluacion_usuario: ultimaEval?.[0]?.evaluacion_usuario || 0,
-                            cumplimiento_tiempo: ultimaEval?.[0]?.cumplimiento_tiempo || 0,
-                            reclamos: ultimaEval?.[0]?.reclamos || 0,
-                            conveniencia_economica: ultimaEval?.[0]?.conveniencia_economica || 0,
-                            compra_local: ultimaEval?.[0]?.compra_local || null,
-                            mes: ultimaEval?.[0]?.mes || 'Sin eval',
-                            _nombre: prov.nombre,
-                            _ciudad: prov.ciudad,
-                            _email: prov.email,
-                            _categoria: categoria,
-                            _seg: seg
-                        };
-                    })
-                );
-
-                // Aplicar filtros
-                let filtered = proveedoresConData;
-                if (filtroTexto) {
-                    filtered = filtered.filter(p => p._nombre.toUpperCase().includes(filtroTexto));
-                }
-                if (filtroCategoria !== 'TODOS') {
-                    filtered = filtered.filter(p => p._categoria === filtroCategoria);
-                }
-
-                if (filtered.length === 0) {
-                    document.getElementById('proveedoresTable').innerHTML = 
-                        '<p style="padding:20px; text-align:center; color:#7f8c8d;">No se encontraron proveedores</p>';
-                    return;
-                }
-
-                // Renderizar TODOS
-                const provMap = {};
-                provs.forEach(p => { provMap[p.id] = p; });
-                
-                const categoriaStyle = {
-                    'CRÍTICO': { color: '#e74c3c', emoji: '🔴', label: 'CRÍTICO' },
-                    'PENDIENTE': { color: '#f39c12', emoji: '🟡', label: 'PENDIENTE' },
-                    'SEMESTRE': { color: '#e67e22', emoji: '🟠', label: 'PRÓX. 6 MESES' },
-                    'AÑO': { color: '#27ae60', emoji: '🟢', label: 'PRÓX. 12 MESES' }
-                };
-
-                let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
-                
-                filtered.forEach((s) => {
-                    const promedio = calcularPromedioWeighted(s.calidad_entrega, s.evaluacion_usuario, s.cumplimiento_tiempo, s.reclamos, s.conveniencia_economica, s.compra_local);
-                    const calificacion = getCalificacion(promedio);
-                    const color = getColorCalificacion(promedio);
-                    const catStyle = categoriaStyle[s._categoria] || categoriaStyle['PENDIENTE'];
-
-                    html += `
-                        <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-                            <div style="background: #f9f9f9; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;" onclick="toggleProveedor('prov-${s.proveedor_id}')">
-                                <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
-                                    <span id="arrow-prov-${s.proveedor_id}" style="color: #504639; font-weight: bold; font-size: 18px;">▶</span>
-                                    <div>
-                                        <div style="font-weight: 700; color: #504639; font-size: 15px;">${s._nombre}</div>
-                                        <div style="font-size: 12px; color: #7f8c8d;">${s._ciudad || ''} | ${s._email || ''}</div>
-                                    </div>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 15px;">
-                                    <div style="text-align: right;">
-                                        <div style="font-size: 14px; font-weight: 700; color: #2c3e50;">Promedio: ${promedio.toFixed(2)}</div>
-                                        <div style="font-size: 12px; color: #7f8c8d;">${calificacion}</div>
-                                    </div>
-                                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                                        <div style="padding: 6px 12px; background: ${catStyle.color}; color: white; border-radius: 6px; font-weight: 700; font-size: 11px; text-align: center;">${catStyle.emoji} ${catStyle.label}</div>
-                                        <div style="padding: 6px 12px; background: ${color}; color: white; border-radius: 6px; font-weight: 700; font-size: 11px; text-align: center;">${calificacion}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="prov-${s.proveedor_id}" style="display: none; border-top: 1px solid #e0e0e0; padding: 15px; background: #f0f8ff;">
-                                <div style="font-weight: 700; color: #504639; margin-bottom: 12px; font-size: 14px;">📊 Información</div>
-                                <div style="font-size: 12px; color: #2c3e50;">
-                                    <div style="margin: 8px 0;"><strong>Última evaluación:</strong> ${s.mes}</div>
-                                    <div style="margin: 8px 0;"><strong>Próxima evaluación:</strong> ${s._seg?.proxima_evaluacion_recomendada || 'No definida'}</div>
-                                    <div style="margin: 8px 0;"><strong>Frecuencia:</strong> ${s._seg?.frecuencia_evaluacion || 'N/A'}</div>
-                                    <div style="margin: 8px 0;"><strong>Categoría:</strong> ${s._categoria}</div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-
-                html += '</div>';
-                document.getElementById('proveedoresTable').innerHTML = html;
-                return;
-            }
-
-            // MODO NORMAL: por mes
-            let { data: scores } = await supabase
-                .from('proveedor_scorecard')
-                .select('*');
-            
-            const mes = document.getElementById('scorecardMonth').value;
-            scores = scores ? scores.filter(s => s.mes === mes) : [];
-            
-            if (!scores || scores.length === 0) {
-                document.getElementById('proveedoresTable').innerHTML = 
-                    '<p style="padding:20px; text-align:center; color:#7f8c8d;">Sin evaluaciones para este mes</p>';
-                return;
-            }
-
-            // Obtener datos de proveedores
+            // Obtener TODOS los proveedores
             const { data: provs } = await supabase.from('proveedores').select('*');
-            const provMap = {};
-            provs?.forEach(p => { provMap[p.id] = p; });
+            if (!provs || provs.length === 0) {
+                document.getElementById('proveedoresTable').innerHTML = 
+                    '<p style="padding:20px; text-align:center; color:#7f8c8d;">No hay proveedores registrados</p>';
+                return;
+            }
 
-            // Clasificar cada proveedor (CRÍTICO, PENDIENTE, SEMESTRE, AÑO)
-            const scorasConCategoria = await Promise.all(
-                scores.map(async (s) => {
-                    const categoria = await clasificarProveedor(s.proveedor_id);
-                    return { ...s, categoria };
+            // Obtener seguimiento
+            const { data: segs } = await supabase.from('seguimiento_proveedor').select('*');
+            const segMap = {};
+            segs?.forEach(s => { segMap[s.proveedor_id] = s; });
+
+            // Para cada proveedor: obtener última evaluación y categoría
+            const proveedoresConData = await Promise.all(
+                provs.map(async (prov) => {
+                    const { data: ultimaEval } = await supabase
+                        .from('proveedor_scorecard')
+                        .select('*')
+                        .eq('proveedor_id', prov.id)
+                        .order('mes', { ascending: false })
+                        .limit(1);
+
+                    const seg = segMap[prov.id];
+                    const hoy = new Date().toISOString().split('T')[0];
+                    const necesitaEvaluacion = seg?.proxima_evaluacion_recomendada ? hoy >= seg.proxima_evaluacion_recomendada : true;
+                    const categoria = await clasificarProveedor(prov.id);
+
+                    return {
+                        ...prov,
+                        ultimaEval: ultimaEval?.[0],
+                        seguimiento: seg,
+                        necesitaEvaluacion,
+                        categoria
+                    };
                 })
             );
 
-            // ORDENAR: primero por categoría (CRÍTICO > PENDIENTE > SEMESTRE > AÑO), luego por promedio
-            const ordenCategoria = { 'CRÍTICO': 0, 'PENDIENTE': 1, 'SEMESTRE': 2, 'AÑO': 3 };
-            scorasConCategoria.sort((a, b) => {
-                const catOrder = ordenCategoria[a.categoria] - ordenCategoria[b.categoria];
-                if (catOrder !== 0) return catOrder;
-
-                const promA = calcularPromedioWeighted(a.calidad_entrega, a.evaluacion_usuario, a.cumplimiento_tiempo, a.reclamos, a.conveniencia_economica, a.compra_local);
-                const promB = calcularPromedioWeighted(b.calidad_entrega, b.evaluacion_usuario, b.cumplimiento_tiempo, b.reclamos, b.conveniencia_economica, b.compra_local);
-                
-                if (Math.abs(promA - promB) < 0.01) {
-                    const nomA = (provMap[a.proveedor_id]?.nombre || 'Z').toUpperCase();
-                    const nomB = (provMap[b.proveedor_id]?.nombre || 'Z').toUpperCase();
-                    return nomA.localeCompare(nomB);
-                }
-                return promB - promA;
-            });
-
-            // APLICAR FILTROS (búsqueda + categoría)
-            let proveedoresFiltrados = scorasConCategoria;
-            
-            // Filtro de búsqueda
+            // Aplicar filtros
+            let filtered = proveedoresConData;
             if (filtroTexto) {
-                proveedoresFiltrados = proveedoresFiltrados.filter(s => {
-                    const pName = (provMap[s.proveedor_id]?.nombre || '').toUpperCase();
-                    return pName.includes(filtroTexto);
-                });
+                filtered = filtered.filter(p => p.nombre.toUpperCase().includes(filtroTexto));
             }
-
-            // Filtro de categoría
             if (filtroCategoria !== 'TODOS') {
-                proveedoresFiltrados = proveedoresFiltrados.filter(s => s.categoria === filtroCategoria);
+                filtered = filtered.filter(p => p.categoria === filtroCategoria);
             }
 
-            if (proveedoresFiltrados.length === 0) {
-                const msgFiltro = filtroTexto ? `"<strong>${document.getElementById('filtroProveedor').value}</strong>"` : 'en esta categoría';
-                document.getElementById('proveedoresTable').innerHTML = 
-                    `<p style="padding:20px; text-align:center; color:#7f8c8d;">❌ No se encontraron proveedores ${msgFiltro}</p>`;
-                return;
-            }
+            // Dividir en 2 grupos
+            const aEvaluar = filtered.filter(p => p.necesitaEvaluacion);
+            const noRequieren = filtered.filter(p => !p.necesitaEvaluacion);
 
-            let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+            // Ordenar
+            const ordenCat = { 'CRÍTICO': 0, 'PENDIENTE': 1, 'SEMESTRE': 2, 'AÑO': 3 };
+            const sortFn = (a, b) => {
+                const cat = ordenCat[a.categoria] - ordenCat[b.categoria];
+                return cat !== 0 ? cat : a.nombre.localeCompare(b.nombre);
+            };
+            aEvaluar.sort(sortFn);
+            noRequieren.sort(sortFn);
 
-            // Mapeo de categoría a color y emoji
-            const categoriaStyle = {
+            const catStyle = {
                 'CRÍTICO': { color: '#e74c3c', emoji: '🔴', label: 'CRÍTICO' },
                 'PENDIENTE': { color: '#f39c12', emoji: '🟡', label: 'PENDIENTE' },
                 'SEMESTRE': { color: '#e67e22', emoji: '🟠', label: 'PRÓX. 6 MESES' },
                 'AÑO': { color: '#27ae60', emoji: '🟢', label: 'PRÓX. 12 MESES' }
             };
 
-            proveedoresFiltrados.forEach((s, idx) => {
-                const prov = provMap[s.proveedor_id];
-                const pName = prov?.nombre || 'N/A';
-                const promedio = calcularPromedioWeighted(s.calidad_entrega, s.evaluacion_usuario, s.cumplimiento_tiempo, s.reclamos, s.conveniencia_economica, s.compra_local);
-                const calificacion = getCalificacion(promedio);
-                const color = getColorCalificacion(promedio);
-                
-                // Usar categoría como badge principal (más importante que calificación)
-                const catStyle = categoriaStyle[s.categoria] || categoriaStyle['PENDIENTE'];
-                const badgeColor = catStyle.color;
-                const badgeEmoji = catStyle.emoji;
-                const badgeLabel = catStyle.label;
+            let html = '';
 
-                html += `
-                    <div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;">
-                        <!-- HEADER EXPANDIBLE -->
-                        <div style="background: #f9f9f9; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;" onclick="toggleProveedor('prov-${s.id}')">
-                            <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
-                                <span id="arrow-prov-${s.id}" style="color: #504639; font-weight: bold; font-size: 18px;">▶</span>
-                                <div>
-                                    <div style="font-weight: 700; color: #504639; font-size: 15px;">${pName}</div>
-                                    <div style="font-size: 12px; color: #7f8c8d;">${prov?.ciudad || ''} | ${prov?.email || ''}</div>
-                                </div>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="text-align: right;">
-                                    <div style="font-size: 14px; font-weight: 700; color: #2c3e50;">Promedio: ${promedio.toFixed(2)}</div>
-                                    <div style="font-size: 12px; color: #7f8c8d;">${calificacion}</div>
-                                </div>
-                                <div style="display: flex; flex-direction: column; gap: 6px;">
-                                    <div style="padding: 6px 12px; background: ${badgeColor}; color: white; border-radius: 6px; font-weight: 700; font-size: 11px; text-align: center;">${badgeEmoji} ${badgeLabel}</div>
-                                    <div style="padding: 6px 12px; background: ${color}; color: white; border-radius: 6px; font-weight: 700; font-size: 11px; text-align: center;">${calificacion}</div>
-                                </div>
-                            </div>
-                            </div>
-                        </div>
+            // GRUPO 1: A EVALUAR
+            if (aEvaluar.length > 0) {
+                html += '<div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;"><div style="font-weight: 700; color: #856404; font-size: 15px;">📌 A EVALUAR ESTE MES (' + aEvaluar.length + ')</div></div><div style="display: flex; flex-direction: column; gap: 15px;">';
 
-                        <!-- CONTENIDO EXPANDIBLE -->
-                        <div id="prov-${s.id}" style="display: none; border-top: 1px solid #e0e0e0;">
-                            <!-- DESCRIPCIÓN DE CRITERIOS -->
-                            <div style="padding: 15px; background: #fafafa; border-bottom: 1px solid #e0e0e0;">
-                                <div style="font-weight: 700; color: #504639; margin-bottom: 12px; font-size: 14px;">📋 Criterios de Evaluación</div>
-                                <div style="font-size: 12px; color: #2c3e50; line-height: 1.8;">
-                                    <strong>Calidad Entrega (20%):</strong> Porcentaje de entregas conformes. 5: 95-100% | 4: 85-94% | 3: 75-84% | 2: 50-74% | 1: <50%<br>
-                                    <strong>Evaluación Usuario (20%):</strong> Satisfacción del cliente. 5: Sin reclamos | 4: Hasta 2, resueltos | 3: Hasta 2, pendientes | 2: +2, poca respuesta | 1: +2, sin respuesta<br>
-                                    <strong>Cumplimiento Tiempo (10%):</strong> Entregas a tiempo. 5: 95-100% | 4: 85-94% | 3: 75-84% | 2: 50-74% | 1: <50%<br>
-                                    <strong>Reclamos (10%):</strong> Cantidad de reclamos. 5: 0 | 4: 1 | 3: 2 | 2: 3 | 1: >3<br>
-                                    <strong>Conveniencia Económica (30%):</strong> Precio-calidad, flexibilidad, financiación. 5: Cumple 3 requisitos | 3: Cumple a y c | 2: Solo a<br>
-                                    <strong>Compra Local (10%):</strong> Ubicación en Mendoza. 5: Mendoza, logística conveniente | 4: Cuyo | 3: Cuyo, buena logística | 2: Cuyo, logística regular | NA: No aplica
-                                </div>
-                            </div>
+                aEvaluar.forEach(prov => {
+                    const cat = catStyle[prov.categoria] || catStyle['PENDIENTE'];
+                    const mesUltima = prov.ultimaEval?.mes || 'Sin evaluaciones';
+                    const mesProxima = prov.seguimiento?.proxima_evaluacion_recomendada || 'N/A';
 
-                            <!-- TABLA DE CRITERIOS ACTUALES -->
-                            <div style="padding: 15px; background: #fafafa;">
-                                <div style="font-weight: 700; color: #504639; margin-bottom: 10px; font-size: 14px;">Evaluación ${mes}</div>
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
-                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
-                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Calidad Entrega (20%)</div>
-                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.calidad_entrega}</div>
-                                    </div>
-                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
-                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Evaluación Usuario (20%)</div>
-                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.evaluacion_usuario}</div>
-                                    </div>
-                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
-                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Cumplimiento Tiempo (10%)</div>
-                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.cumplimiento_tiempo}</div>
-                                    </div>
-                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
-                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Reclamos (10%)</div>
-                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.reclamos}</div>
-                                    </div>
-                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
-                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Conveniencia Económica (30%)</div>
-                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.conveniencia_economica}</div>
-                                    </div>
-                                    <div style="padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
-                                        <div style="font-size: 11px; color: #7f8c8d; font-weight: 600;">Compra Local (10%)</div>
-                                        <div style="font-size: 18px; font-weight: 700; color: #2c3e50;">${s.compra_local === null ? 'N/A' : s.compra_local}</div>
-                                    </div>
-                                </div>
-                            </div>
+                    html += '<div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;"><div style="background: #f9f9f9; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleProveedor(\'prov-' + prov.id + '\')"><div><div style="font-weight: 700; color: #504639;">' + prov.nombre + '</div><div style="font-size: 12px; color: #7f8c8d;">' + prov.ciudad + '</div></div><div style="text-align: right;"><div style="font-size: 12px;">Últ: ' + mesUltima + '</div><div style="font-weight: 700;">Próx: ' + mesProxima + '</div><div style="padding: 6px 10px; background: ' + cat.color + '; color: white; border-radius: 4px; margin-top: 5px; font-size: 11px;">' + cat.emoji + ' ' + cat.label + '</div></div></div><div id="prov-' + prov.id + '" style="display: none; border-top: 1px solid #e0e0e0; padding: 15px;"><div id="seguimiento-' + prov.id + '" style="margin-bottom: 15px; font-size: 12px;"></div><div style="height: 200px; margin-bottom: 15px;"><canvas id="chart-prov-' + prov.id + '"></canvas></div><button onclick="addScorecard()" style="padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Agregar Evaluación</button></div></div>';
+                });
 
-                            <!-- GRÁFICO DE EVOLUCIÓN -->
-                            <div style="padding: 15px; border-top: 1px solid #e0e0e0;">
-                                <div style="font-weight: 700; color: #504639; margin-bottom: 12px; font-size: 14px;">📈 Evolución Histórica</div>
-                                <div style="height: 250px; margin-bottom: 10px;">
-                                    <canvas id="chart-prov-${s.proveedor_id}"></canvas>
-                                </div>
-                            </div>
+                html += '</div>';
+            }
 
-                            <!-- SEGUIMIENTO SEMESTRAL -->
-                            <div style="padding: 15px; border-top: 1px solid #e0e0e0; background: #f0f8ff;">
-                                <div style="font-weight: 700; color: #504639; margin-bottom: 12px; font-size: 14px;">📊 Seguimiento Semestral</div>
-                                <div id="seguimiento-${s.id}" style="font-size: 12px; color: #2c3e50;">
-                                    <p style="margin: 10px 0; font-style: italic; color: #7f8c8d;">Cargando información...</p>
-                                </div>
-                            </div>
+            // GRUPO 2: NO REQUIEREN
+            if (noRequieren.length > 0) {
+                html += '<div style="background: #d4edda; border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin: 30px 0 20px 0;"><div style="font-weight: 700; color: #155724;">✓ NO REQUIEREN EVALUACIÓN (' + noRequieren.length + ')</div></div><div style="display: flex; flex-direction: column; gap: 15px;">';
 
-                            <!-- BOTONES -->
-                            <div style="padding: 15px; border-top: 1px solid #e0e0e0; display: flex; gap: 10px; background: #f9f9f9;">
-                                <button class="btn-primary" onclick="prepareEditScorecard('${s.id}', '${s.proveedor_id}')" style="flex: 1; padding: 10px;">✏️ Editar</button>
-                                <button class="btn-secondary" onclick="deleteScorecard('${s.id}')" style="flex: 1; padding: 10px; background: #e74c3c; color: white; border: none;">🗑️ Eliminar</button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
+                noRequieren.forEach(prov => {
+                    const cat = catStyle[prov.categoria] || catStyle['PENDIENTE'];
+                    const mesUltima = prov.ultimaEval?.mes || 'Sin evaluaciones';
+                    const mesProxima = prov.seguimiento?.proxima_evaluacion_recomendada || 'N/A';
 
-            html += '</div>';
+                    html += '<div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; opacity: 0.8;"><div style="background: #f9f9f9; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleProveedor(\'prov-' + prov.id + '\')"><div><div style="font-weight: 700; color: #504639;">' + prov.nombre + '</div><div style="font-size: 12px; color: #7f8c8d;">' + prov.ciudad + '</div></div><div style="text-align: right;"><div style="font-size: 12px;">Últ: ' + mesUltima + '</div><div style="font-weight: 700;">Próx: ' + mesProxima + '</div><div style="padding: 6px 10px; background: ' + cat.color + '; color: white; border-radius: 4px; margin-top: 5px; font-size: 11px;">' + cat.emoji + ' ' + cat.label + '</div></div></div><div id="prov-' + prov.id + '" style="display: none; border-top: 1px solid #e0e0e0; padding: 15px;"><div id="seguimiento-' + prov.id + '" style="margin-bottom: 15px; font-size: 12px;"></div><div style="height: 200px;"><canvas id="chart-prov-' + prov.id + '"></canvas></div></div></div>';
+                });
+
+                html += '</div>';
+            }
+
+            if (aEvaluar.length === 0 && noRequieren.length === 0) {
+                html = '<p style="padding:20px; text-align:center; color:#7f8c8d;">No hay proveedores</p>';
+            }
+
             document.getElementById('proveedoresTable').innerHTML = html;
 
-            // Cargar gráficos para cada proveedor
-            proveedoresFiltrados.forEach(s => {
-                setTimeout(() => cargarGraficoProveedor(s.proveedor_id), 100);
-                // Cargar seguimiento semestral
-                setTimeout(() => cargarYMostrarSeguimiento(s.id, s.proveedor_id), 150);
+            // Cargar gráficos y seguimiento
+            [...aEvaluar, ...noRequieren].forEach(prov => {
+                setTimeout(() => cargarGraficoProveedor(prov.id), 100);
+                setTimeout(() => cargarYMostrarSeguimiento(prov.id, prov.id), 150);
             });
         }
 
@@ -2222,22 +2017,6 @@
                 statusDiv.style.background = '#f8d7da';
                 statusDiv.style.color = '#721c24';
             }
-        }
-
-        // Variable global para ver TODOS
-        window.verTodos = false;
-
-        function toggleVerTodos() {
-            window.verTodos = !window.verTodos;
-            const btn = document.getElementById('btnVerTodos');
-            if (window.verTodos) {
-                btn.style.background = '#e74c3c';
-                btn.textContent = '👁️ Ver SOLO mes actual';
-            } else {
-                btn.style.background = '#9b59b6';
-                btn.textContent = '👁️ Ver TODOS los proveedores';
-            }
-            loadScorecardTable();
         }
 
         // Listener para filtro en tiempo real

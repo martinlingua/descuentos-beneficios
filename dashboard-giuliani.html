@@ -1050,12 +1050,22 @@
             const { data: stockData } = await supabase.from('stock').select('*').order('mes');
             const { data: metasData } = await supabase.from('metas').select('*').order('mes');
             
+            // CORREGIDO: Armar últimos 12 meses con aritmética de strings (evita problemas de timezone)
             const last12Months = [];
-            const today = new Date(currentMonth + '-01');
+            const [currentYear, currentMonthNum] = currentMonth.split('-').map(Number);
+            
             for (let i = 11; i >= 0; i--) {
-                const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-                const m = String(d.getMonth() + 1).padStart(2, '0');
-                last12Months.push(`${d.getFullYear()}-${m}`);
+                let year = currentYear;
+                let month = currentMonthNum - i;
+                
+                // Ajustar año si el mes es negativo
+                while (month <= 0) {
+                    month += 12;
+                    year--;
+                }
+                
+                const monthStr = String(month).padStart(2, '0');
+                last12Months.push(`${year}-${monthStr}`);
             }
 
             // Calcular datos: REAL, (REAL + BENEFICIOS) y PROYECTO

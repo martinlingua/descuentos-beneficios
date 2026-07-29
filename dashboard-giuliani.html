@@ -1775,7 +1775,7 @@
             const filtroCategoria = window.filtroCategoria || 'TODOS';
             
             // Obtener TODOS los proveedores
-            const { data: provs } = await supabase.from('proveedores').select('*');
+            const { data: provs } = await supabase.from('proveedores').select('*').eq('activo', true);
             if (!provs || provs.length === 0) {
                 document.getElementById('proveedoresTable').innerHTML = 
                     '<p style="padding:20px; text-align:center; color:#7f8c8d;">No hay proveedores registrados</p>';

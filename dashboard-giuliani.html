@@ -1771,65 +1771,78 @@
         }
 
         async function guardarEvaluacionInline(proveedor_id) {
-            // Obtener mes del selector o usar mes actual
-            let mes = document.getElementById('scorecardMonth')?.value;
-            if (!mes) {
-                const hoy = new Date();
-                mes = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0');
-            }
-
-            // Obtener valores del formulario
-            const calidad_entrega = parseInt(document.getElementById('calidad_' + proveedor_id)?.value || 0);
-            const evaluacion_usuario = parseInt(document.getElementById('evaluacion_' + proveedor_id)?.value || 0);
-            const cumplimiento_tiempo = parseInt(document.getElementById('cumplimiento_' + proveedor_id)?.value || 0);
-            const reclamos = parseInt(document.getElementById('reclamos_' + proveedor_id)?.value || 0);
-            const conveniencia_economica = parseInt(document.getElementById('conveniencia_' + proveedor_id)?.value || 0);
-            const compra_local = document.getElementById('compra_' + proveedor_id)?.value || null;
-            const compra_local_val = compra_local === 'NA' ? null : parseInt(compra_local || 0);
-            const notas = document.getElementById('notas_' + proveedor_id)?.value || '';
-
-            // Validar que todos los campos obligatorios estén completos
-            if (!calidad_entrega || !evaluacion_usuario || !cumplimiento_tiempo || !reclamos || !conveniencia_economica) {
-                alert('⚠️ Completa todos los criterios obligatorios (1-5)');
-                return;
-            }
-
-            // Guardar en BD
-            const { data: insertData, error: insertError } = await supabase
-                .from('proveedor_scorecard')
-                .insert([{
-                    proveedor_id,
-                    mes,
-                    calidad_entrega,
-                    evaluacion_usuario,
-                    cumplimiento_tiempo,
-                    reclamos,
-                    conveniencia_economica,
-                    compra_local: compra_local_val,
-                    notas
-                }]);
-
-            if (insertError) {
-                alert('❌ Error al guardar: ' + insertError.message);
-                return;
-            }
-
-            // Actualizar seguimiento_proveedor
-            await actualizarSeguimientoProveedor(proveedor_id);
-
-            // Limpiar formulario
-            document.getElementById('calidad_' + proveedor_id).value = '';
-            document.getElementById('evaluacion_' + proveedor_id).value = '';
-            document.getElementById('cumplimiento_' + proveedor_id).value = '';
-            document.getElementById('reclamos_' + proveedor_id).value = '';
-            document.getElementById('conveniencia_' + proveedor_id).value = '';
-            document.getElementById('compra_' + proveedor_id).value = '';
-            document.getElementById('notas_' + proveedor_id).value = '';
-
-            alert('✓ Evaluación guardada correctamente');
+            console.log('Guardando evaluación para proveedor:', proveedor_id);
             
-            // Recargar tabla
-            loadScorecardTable();
+            try {
+                // Obtener mes del selector o usar mes actual
+                let mes = document.getElementById('scorecardMonth')?.value;
+                if (!mes) {
+                    const hoy = new Date();
+                    mes = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0');
+                }
+                console.log('Mes:', mes);
+
+                // Obtener valores del formulario
+                const calidad_entrega = parseInt(document.getElementById('calidad_' + proveedor_id)?.value || 0);
+                const evaluacion_usuario = parseInt(document.getElementById('evaluacion_' + proveedor_id)?.value || 0);
+                const cumplimiento_tiempo = parseInt(document.getElementById('cumplimiento_' + proveedor_id)?.value || 0);
+                const reclamos = parseInt(document.getElementById('reclamos_' + proveedor_id)?.value || 0);
+                const conveniencia_economica = parseInt(document.getElementById('conveniencia_' + proveedor_id)?.value || 0);
+                const compra_local = document.getElementById('compra_' + proveedor_id)?.value || null;
+                const compra_local_val = compra_local === 'NA' ? null : parseInt(compra_local || 0);
+                const notas = document.getElementById('notas_' + proveedor_id)?.value || '';
+
+                console.log('Valores:', { calidad_entrega, evaluacion_usuario, cumplimiento_tiempo, reclamos, conveniencia_economica, compra_local_val, notas });
+
+                // Validar que todos los campos obligatorios estén completo
+                if (!calidad_entrega || !evaluacion_usuario || !cumplimiento_tiempo || !reclamos || !conveniencia_economica) {
+                    alert('⚠️ Completa todos los criterios obligatorios (1-5)');
+                    return;
+                }
+
+                // Guardar en BD
+                const { data: insertData, error: insertError } = await supabase
+                    .from('proveedor_scorecard')
+                    .insert([{
+                        proveedor_id,
+                        mes,
+                        calidad_entrega,
+                        evaluacion_usuario,
+                        cumplimiento_tiempo,
+                        reclamos,
+                        conveniencia_economica,
+                        compra_local: compra_local_val,
+                        notas
+                    }]);
+
+                if (insertError) {
+                    console.error('Error en inserción:', insertError);
+                    alert('❌ Error al guardar: ' + insertError.message);
+                    return;
+                }
+
+                console.log('Evaluación guardada, actualizando seguimiento...');
+
+                // Actualizar seguimiento_proveedor
+                await actualizarSeguimientoProveedor(proveedor_id);
+
+                // Limpiar formulario
+                document.getElementById('calidad_' + proveedor_id).value = '';
+                document.getElementById('evaluacion_' + proveedor_id).value = '';
+                document.getElementById('cumplimiento_' + proveedor_id).value = '';
+                document.getElementById('reclamos_' + proveedor_id).value = '';
+                document.getElementById('conveniencia_' + proveedor_id).value = '';
+                document.getElementById('compra_' + proveedor_id).value = '';
+                document.getElementById('notas_' + proveedor_id).value = '';
+
+                alert('✓ Evaluación guardada correctamente');
+                
+                // Recargar tabla
+                loadScorecardTable();
+            } catch (err) {
+                console.error('Error general:', err);
+                alert('❌ Error: ' + err.message);
+            }
         }
 
         async function loadScorecardTable() {

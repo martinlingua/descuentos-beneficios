@@ -1790,8 +1790,13 @@
 
                     const seg = segMap[prov.id];
                     const hoy = new Date().toISOString().split('T')[0];
-                    const necesitaEvaluacion = seg?.proxima_evaluacion_recomendada ? hoy >= seg.proxima_evaluacion_recomendada : true;
                     const categoria = await clasificarProveedor(prov.id);
+                    
+                    // LÓGICA CORRECTA: CRÍTICO y PENDIENTE SIEMPRE a evaluar
+                    const necesitaEvaluacion = 
+                        categoria === 'CRÍTICO' || 
+                        categoria === 'PENDIENTE' || 
+                        (seg?.proxima_evaluacion_recomendada ? hoy >= seg.proxima_evaluacion_recomendada : true);
 
                     return {
                         ...prov,

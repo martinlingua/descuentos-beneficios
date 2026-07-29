@@ -1761,6 +1761,15 @@
             return window.evaluacionesPrevias[proveedorId];
         }
 
+        function formatearFecha(fecha) {
+            if (!fecha || fecha === 'Sin evaluaciones' || fecha === 'N/A') return fecha;
+            // Convertir YYYY-MM-DD a DD/MM/YY
+            const [año, mes, dia] = fecha.split('-');
+            if (!año || !mes || !dia) return fecha;
+            const añoCorto = año.slice(-2);
+            return dia + '/' + mes + '/' + añoCorto;
+        }
+
         async function loadScorecardTable() {
             const filtroTexto = (document.getElementById('filtroProveedor').value || '').toUpperCase();
             const filtroCategoria = window.filtroCategoria || 'TODOS';
@@ -1792,11 +1801,8 @@
                     const hoy = new Date().toISOString().split('T')[0];
                     const categoria = await clasificarProveedor(prov.id);
                     
-                    // LÓGICA CORRECTA: CRÍTICO y PENDIENTE SIEMPRE a evaluar
-                    const necesitaEvaluacion = 
-                        categoria === 'CRÍTICO' || 
-                        categoria === 'PENDIENTE' || 
-                        (seg?.proxima_evaluacion_recomendada ? hoy >= seg.proxima_evaluacion_recomendada : true);
+                    // LÓGICA CORRECTA: Solo por fecha (sin importar categoría)
+                    const necesitaEvaluacion = seg?.proxima_evaluacion_recomendada ? hoy >= seg.proxima_evaluacion_recomendada : true;
 
                     return {
                         ...prov,
@@ -1832,7 +1838,7 @@
 
             const catStyle = {
                 'CRÍTICO': { color: '#e74c3c', emoji: '🔴', label: 'CRÍTICO' },
-                'PENDIENTE': { color: '#f39c12', emoji: '🟡', label: 'PENDIENTE' },
+                'PENDIENTE': { color: '#f39c12', emoji: '🟡', label: 'CONDICIONAL' },
                 'SEMESTRE': { color: '#e67e22', emoji: '🟠', label: 'PRÓX. 6 MESES' },
                 'AÑO': { color: '#27ae60', emoji: '🟢', label: 'PRÓX. 12 MESES' }
             };
@@ -1845,8 +1851,8 @@
 
                 aEvaluar.forEach(prov => {
                     const cat = catStyle[prov.categoria] || catStyle['PENDIENTE'];
-                    const mesUltima = prov.ultimaEval?.mes || 'Sin evaluaciones';
-                    const mesProxima = prov.seguimiento?.proxima_evaluacion_recomendada || 'N/A';
+                    const mesUltima = formatearFecha(prov.ultimaEval?.mes || 'Sin evaluaciones');
+                    const mesProxima = formatearFecha(prov.seguimiento?.proxima_evaluacion_recomendada || 'N/A');
 
                     html += '<div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden;"><div style="background: #f9f9f9; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleProveedor(\'prov-' + prov.id + '\')"><div><div style="font-weight: 700; color: #504639;">' + prov.nombre + '</div><div style="font-size: 12px; color: #7f8c8d;">' + prov.ciudad + '</div></div><div style="text-align: right;"><div style="font-size: 12px;">Últ: ' + mesUltima + '</div><div style="font-weight: 700;">Próx: ' + mesProxima + '</div><div style="padding: 6px 10px; background: ' + cat.color + '; color: white; border-radius: 4px; margin-top: 5px; font-size: 11px;">' + cat.emoji + ' ' + cat.label + '</div></div></div><div id="prov-' + prov.id + '" style="display: none; border-top: 1px solid #e0e0e0; padding: 15px;"><div id="seguimiento-' + prov.id + '" style="margin-bottom: 15px; font-size: 12px;"></div><div style="height: 200px; margin-bottom: 15px;"><canvas id="chart-prov-' + prov.id + '"></canvas></div><button onclick="addScorecard()" style="padding: 10px 15px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Agregar Evaluación</button></div></div>';
                 });
@@ -1860,8 +1866,8 @@
 
                 noRequieren.forEach(prov => {
                     const cat = catStyle[prov.categoria] || catStyle['PENDIENTE'];
-                    const mesUltima = prov.ultimaEval?.mes || 'Sin evaluaciones';
-                    const mesProxima = prov.seguimiento?.proxima_evaluacion_recomendada || 'N/A';
+                    const mesUltima = formatearFecha(prov.ultimaEval?.mes || 'Sin evaluaciones');
+                    const mesProxima = formatearFecha(prov.seguimiento?.proxima_evaluacion_recomendada || 'N/A');
 
                     html += '<div style="border: 1px solid #e0e0e0; border-radius: 8px; overflow: hidden; opacity: 0.8;"><div style="background: #f9f9f9; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleProveedor(\'prov-' + prov.id + '\')"><div><div style="font-weight: 700; color: #504639;">' + prov.nombre + '</div><div style="font-size: 12px; color: #7f8c8d;">' + prov.ciudad + '</div></div><div style="text-align: right;"><div style="font-size: 12px;">Últ: ' + mesUltima + '</div><div style="font-weight: 700;">Próx: ' + mesProxima + '</div><div style="padding: 6px 10px; background: ' + cat.color + '; color: white; border-radius: 4px; margin-top: 5px; font-size: 11px;">' + cat.emoji + ' ' + cat.label + '</div></div></div><div id="prov-' + prov.id + '" style="display: none; border-top: 1px solid #e0e0e0; padding: 15px;"><div id="seguimiento-' + prov.id + '" style="margin-bottom: 15px; font-size: 12px;"></div><div style="height: 200px;"><canvas id="chart-prov-' + prov.id + '"></canvas></div></div></div>';
                 });
